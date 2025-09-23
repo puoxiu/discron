@@ -7,9 +7,10 @@ import (
 )
 
 func main() {
-	err := config.LoadConfig("admin", "testing")
+	c, err := config.LoadConfig("admin", "testing", "main")
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(111)
 	}
+	fmt.Println(c)
 }
