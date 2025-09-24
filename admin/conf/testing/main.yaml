@@ -13,7 +13,7 @@ mysql:
 system:
   env: "testing"
   addr: 8888
-  node-timeout: 5
+  node-ttl: 5
   logclear: 12
 
 etcd:

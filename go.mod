@@ -5,6 +5,7 @@ go 1.24
 toolchain go1.24.7
 
 require (
+	github.com/coreos/etcd v3.3.27+incompatible
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/gin-gonic/gin v1.11.0
 	github.com/google/uuid v1.6.0

@@ -23,6 +23,7 @@ etcd:
   username: ""
   password: ""
   dial-timeout: 2
+  req-timeout: 5
 
 email:
   port: 465

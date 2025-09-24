@@ -5,6 +5,7 @@ import (
 
 	// "github.com/puoxiu/discron/common/pkg/config"
 	"github.com/puoxiu/discron/admin/internal/handler"
+	"github.com/puoxiu/discron/admin/internal/service"
 	"github.com/puoxiu/discron/common/pkg/logger"
 	"github.com/puoxiu/discron/common/pkg/server"
 )
@@ -30,6 +31,12 @@ func main() {
 
 	srv.RegisterRouters(handler.RegisterRouters)
 	
+	// 
+	err = service.NewNodeWatcher().Watch()
+	if err!= nil {
+		logger.Errorf("node watcher error:%s", err.Error())
+		os.Exit(111)
+	}
 
 	err = srv.ListenAndServe()
 	if err!= nil {

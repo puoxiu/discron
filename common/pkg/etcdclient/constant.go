@@ -1,21 +1,21 @@
 package etcdclient
 
 /*
-   "node": "/crony/node/",
-   "proc": "/crony/proc/",
-   "cmd": "/crony/cmd/",
-   "once": "/crony/once/",
-   "lock": "/crony/lock/",
-   "group": "/crony/group/",
-   "noticer": "/crony/noticer/"
+   "node": "/cronix/node/",
+   "proc": "/cronix/proc/",
+   "cmd": "/cronix/cmd/",
+   "once": "/cronix/once/",
+   "lock": "/cronix/lock/",
+   "group": "/cronix/group/",
+   "noticer": "/cronix/noticer/"
 */
 const (
-	KeyEtcdProfile = "/crony/"
+	KeyEtcdProfile = "/cronix/"
 	//node节点
-	KeyEtcdNode    = KeyEtcdProfile + "node/%s"
-	KeyEtcdProc    = KeyEtcdProfile + "proc/%s"
-	KeyEtcdCmd     = KeyEtcdProfile + "cmd/%s"
-	KeyEtcdOnce    = KeyEtcdProfile + "once/%s"
-	KeyEtcdLock    = KeyEtcdProfile + "lock/%s"
-	KeyEtcdNoticer = KeyEtcdProfile + "noticer/%s"
+	KeyEtcdNode    = KeyEtcdProfile + "node/"
+	KeyEtcdProc    = KeyEtcdProfile + "proc/"
+	KeyEtcdCmd     = KeyEtcdProfile + "cmd/"
+	KeyEtcdOnce    = KeyEtcdProfile + "once/"
+	KeyEtcdLock    = KeyEtcdProfile + "lock/"
+	KeyEtcdNoticer = KeyEtcdProfile + "noticer/"
 )
