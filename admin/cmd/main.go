@@ -1,10 +1,10 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	// "github.com/puoxiu/discron/common/pkg/config"
+	"github.com/puoxiu/discron/admin/internal/handler"
 	"github.com/puoxiu/discron/common/pkg/logger"
 	"github.com/puoxiu/discron/common/pkg/server"
 )
@@ -23,11 +23,13 @@ func main() {
 
 	srv, err := server.NewApiServer(ServerName)
 	if err!= nil {
-		fmt.Println(err)
+		logger.Errorf("new api server error:%s", err.Error())
 		os.Exit(111)
 	}
-
 	logger.Infof("logger init success")
+
+	srv.RegisterRouters(handler.RegisterRouters)
+	
 
 	err = srv.ListenAndServe()
 	if err!= nil {
