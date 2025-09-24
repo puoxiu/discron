@@ -35,7 +35,7 @@ email:
 log:
   level: "info"
   format: "console"
-  prefix: "[cronix-admin]"
+  prefix: "[discron-admin]"
   director: "logs"
   showLine: false
   encode-level: "LowercaseColorLevelEncoder"

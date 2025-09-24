@@ -19,7 +19,8 @@ var (
 const (
 	// Version ApiServer框架版本号
 	Version = "v1.0.0"
-	Module  = "discron/api-server"
+	ApiModule  = "discron/api-server"
+	NodeModule = "discron/node-server"
 )
 
 func formatTime(t time.Time) string {
