@@ -2,7 +2,7 @@
 data/
 node/
 bin/
-
+logs/
 
 .vscode
 .env

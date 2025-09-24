@@ -29,22 +29,20 @@ var (
 	}
 )
 
+var _defaultConfig *models.Config
 
-func LoadConfig(serverName, env, configFileName string) (*models.Config, error) {
+func LoadConfig(env, serverName, configFileName string) (*models.Config, error) {
 	var c models.Config
 	var confPath string
-	dir:=fmt.Sprintf("%s/%s/%s",serverName,NameSpace,env)
+	dir := fmt.Sprintf("%s/%s/%s", serverName, NameSpace, env)
 	for _, registerExt := range autoLoadLocalConfigs {
 		confPath = path.Join(dir, configFileName+registerExt)
 		if utils.Exists(confPath) {
-			break	//找到配置文件，跳出循环
+			break
+			//return NewConfig(env, namespace, configFileName+registerExt)
 		}
 	}
-	if !utils.Exists(confPath) {
-		return nil, fmt.Errorf("config file not found: %s", confPath)
-	}
-	fmt.Println("confPath is :", confPath)
-
+	fmt.Println("the path to the configuration file you are using is :", confPath)
 	v := viper.New()
 	v.SetConfigFile(confPath)
 	ext := utils.Ext(confPath)
@@ -64,7 +62,11 @@ func LoadConfig(serverName, env, configFileName string) (*models.Config, error) 
 	if err := v.Unmarshal(&c); err != nil {
 		fmt.Println(err)
 	}
-	fmt.Printf("config is :%#v", c)
+	fmt.Printf("config is :%#v\n", c)
+	_defaultConfig = &c
+	return &c, nil
+}
 
-	return &c,nil
+func GetConfigModels() *models.Config {
+	return _defaultConfig
 }
