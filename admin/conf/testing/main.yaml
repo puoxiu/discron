@@ -35,7 +35,7 @@ email:
 log:
   level: "info"
   format: "console"
-  prefix: "[--hust_mall--]"
+  prefix: "[cronix-admin]"
   director: "logs"
   showLine: false
   encode-level: "LowercaseColorLevelEncoder"
