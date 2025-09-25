@@ -5,6 +5,11 @@ import (
 	"github.com/puoxiu/discron/common/pkg/dbclient"
 )
 
+
+const (
+	NodeConnSuccess = 1 // 连接成功
+	NodeConnFail    = 2 // 连接失败
+)
 // 执行 cron cmd 的进程
 // 注册到 /cronsun/node/<id>
 type Node struct {
