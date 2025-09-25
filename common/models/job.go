@@ -100,13 +100,8 @@ func (j *Job) Delete() error {
 	return dbclient.GetMysqlDB().Exec(fmt.Sprintf("delete from %s where id = ?", CronixJobTableName), j.ID).Error
 }
 
-func FindJobById(jobId int) (*Job, error) {
-	var job Job
-	err := dbclient.GetMysqlDB().Table(CronixJobTableName).Where("id = ? ", jobId).First(&job).Error
-	if err != nil {
-		return nil, err
-	}
-	return &job, nil
+func (j *Job) FindById() error {
+	return dbclient.GetMysqlDB().Table(CronixJobTableName).Where("id = ? ", j.ID).First(j).Error
 }
 func (j *Job) Check() error {
 	j.Name = strings.TrimSpace(j.Name)

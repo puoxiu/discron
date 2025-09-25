@@ -3,23 +3,21 @@ package service
 import (
 	"context"
 	"fmt"
-
 	"go.etcd.io/etcd/client/v3"
-
-	// "github.com/coreos/etcd/mvcc/mvccpb"
 	"sync"
-
 	"github.com/puoxiu/discron/common/pkg/etcdclient"
 	"github.com/puoxiu/discron/common/pkg/logger"
 	"go.etcd.io/etcd/api/v3/mvccpb"
+	"strings"
 )
 
-// NodeWatcher 用于监听 etcd 中节点（Node）的变化（新增/删除），维护节点列表
 type NodeWatcher struct {
 	client     *etcdclient.Client
 	serverList map[string]string
 	lock       sync.Mutex
 }
+
+var DefaultNodeWatcher = NewNodeWatcher()
 
 func NewNodeWatcher() *NodeWatcher {
 	return &NodeWatcher{
@@ -45,7 +43,10 @@ func (s *NodeWatcher) watcher() {
 		for _, ev := range wresp.Events {
 			switch ev.Type {
 			case mvccpb.PUT:
-				//todo
+				//todo insert or update
+				/*node:=&models.Node{
+					UUID:s.GetUUID(string(ev.Kv.Key)),
+				}*/
 				s.SetServiceList(string(ev.Kv.Key), string(ev.Kv.Value))
 			case mvccpb.DELETE:
 				fmt.Println("server delete")
@@ -96,4 +97,14 @@ func (s *NodeWatcher) SerList2Array() []string {
 
 func (s *NodeWatcher) Close() error {
 	return nil
+}
+
+func (s *NodeWatcher) GetUUID(key string) string {
+	// /crony/node/<node_uuid>
+	index := strings.LastIndex(key, "/")
+	if index == -1 {
+		return ""
+	}
+	logger.GetLogger().Debug(fmt.Sprintf("key_index:%s key_index+1%s", key[index:], key[index+1:]))
+	return key[index+1:]
 }

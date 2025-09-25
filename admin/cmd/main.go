@@ -33,7 +33,8 @@ func main() {
 	srv.RegisterRouters(handler.RegisterRouters)
 	
 	// 
-	err = service.NewNodeWatcher().Watch()
+	err = service.DefaultNodeWatcher.Watch()
+
 	if err!= nil {
 		logger.GetLogger().Error(fmt.Sprintf("node watcher error:%s", err.Error()))
 		os.Exit(111)

@@ -1,9 +1,10 @@
 package service
 
 import (
-	"github.com/puoxiu/discron/admin/internal/model"
 	"github.com/puoxiu/discron/common/models"
 	"github.com/puoxiu/discron/common/pkg/dbclient"
+	"github.com/puoxiu/discron/admin/internal/model/request"
+	
 )
 
 type JobService struct {
@@ -11,7 +12,7 @@ type JobService struct {
 
 var DefaultJobService = new(JobService)
 
-func (j *JobService) Search(s *model.ReqJobSearch) ([]models.Job, int64, error) {
+func (j *JobService) Search(s *request.ReqJobSearch) ([]models.Job, int64, error) {
 	db := dbclient.GetMysqlDB().Table(models.CronixJobTableName)
 	if len(s.Name) > 0 {
 		db = db.Where("name like ?", s.Name+"%")
@@ -35,5 +36,38 @@ func (j *JobService) Search(s *model.ReqJobSearch) ([]models.Job, int64, error) 
 		return nil, 0, err
 	}
 	err = db.Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
 	return jobs, total, nil
+}
+
+func (j *JobService) SearchJobLog(s *request.ReqJobLogSearch) ([]models.JobLog, int64, error) {
+	db := dbclient.GetMysqlDB().Table(models.CronixJobLogTableName)
+	if len(s.Name) > 0 {
+		db = db.Where("name like ?", s.Name+"%")
+	}
+	if s.GroupId > 0 {
+		db.Where("group_id = ?", s.GroupId)
+	}
+	if s.JobId > 0 {
+		db.Where("job_id = ?", s.JobId)
+	}
+	if len(s.NodeUUID) > 0 {
+		db.Where("node_uuid = ?", s.NodeUUID)
+	}
+	if s.Success != nil {
+		db.Where("success = ? ", *s.Success)
+	}
+	jobLogs := make([]models.JobLog, 2)
+	var total int64
+	err := db.Limit(s.PageSize).Offset((s.Page - 1) * s.PageSize).Find(&jobLogs).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	err = db.Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	return jobLogs, total, nil
 }
