@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	// "github.com/puoxiu/discron/common/pkg/config"
@@ -24,25 +25,25 @@ func main() {
 
 	srv, err := server.NewApiServer(ServerName)
 	if err!= nil {
-		logger.Errorf("new api server error:%s", err.Error())
+		logger.GetLogger().Error(fmt.Sprintf("new api server error:%s", err.Error()))
 		os.Exit(111)
 	}
-	logger.Infof("logger init success")
+	// logger.Infof("logger init success")
 
 	srv.RegisterRouters(handler.RegisterRouters)
 	
 	// 
 	err = service.NewNodeWatcher().Watch()
 	if err!= nil {
-		logger.Errorf("node watcher error:%s", err.Error())
+		logger.GetLogger().Error(fmt.Sprintf("node watcher error:%s", err.Error()))
 		os.Exit(111)
 	}
 
 	err = srv.ListenAndServe()
 	if err!= nil {
-		logger.Errorf("api-server:listen and serve error:%s", err.Error())
+		logger.GetLogger().Error(fmt.Sprintf("api-server:listen and serve error:%s", err.Error()))
 		os.Exit(111)
 	}
 
-	logger.Infof("api-server:listen and serve success")
+	logger.GetLogger().Info("api-server:listen and serve success")
 }

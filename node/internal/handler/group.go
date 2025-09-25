@@ -1,42 +1,50 @@
 package handler
 
 import (
-	"encoding/json"
 	"fmt"
-	"go.etcd.io/etcd/client/v3"
 	"github.com/puoxiu/discron/common/models"
-	"github.com/puoxiu/discron/common/pkg/etcdclient"
-	"github.com/puoxiu/discron/common/pkg/logger"
-	"github.com/puoxiu/discron/common/pkg/utils/errors"
-	"strings"
+	"github.com/puoxiu/discron/common/pkg/dbclient"
 )
 
-type Group struct {
-	*models.Group
-}
-type Groups map[string]*Group
+type Groups map[int]*models.Group
 
-func WatchGroups() clientv3.WatchChan {
-	return etcdclient.Watch(etcdclient.KeyEtcdGroup, clientv3.WithPrefix(), clientv3.WithPrevKV())
-}
-
-func GetGroupById(groupId string) (group *Group, err error) {
-	if len(groupId) == 0 {
+// GetGroups 获取包含 nodeId 的 group
+// 如果 nodeId 为空，则获取所有的 group
+func GetGroups(nodeUUID string) (groupsMap Groups, err error) {
+	sql := fmt.Sprintf("select g.id as id g.name as name from %s  ng left join %s g  on  ng.group_id = g.id ")
+	if len(nodeUUID) > 0 {
+		sql += "and ng.node_uuid=?"
+	}
+	groups := make([]*models.Group, 2)
+	groupsMap = make(Groups, 2)
+	err = dbclient.GetMysqlDB().Raw(fmt.Sprintf(sql, models.CronixNodeGroupTableName, models.CronixGroupTableName), nodeUUID).Scan(groups).Error
+	if err != nil {
 		return
 	}
-	resp, err := etcdclient.Get(etcdclient.KeyEtcdGroup + groupId)
+	for _, group := range groups {
+		groupsMap[group.ID] = group
+	}
+	return
+}
+
+/*
+func GetGroupById(gid int) (g *Group, err error) {
+	if gid <= 0 {
+		return
+	}
+	resp, err := etcdclient.Get(fmt.Sprintf(etcdclient.KeyEtcdGroup,gid) )
 	if err != nil || resp.Count == 0 {
 		return
 	}
 
-	err = json.Unmarshal(resp.Kvs[0].Value, &group)
+	err = json.Unmarshal(resp.Kvs[0].Value, &g)
 	return
 }
 
-// GetGroups 获取包含 nodeId 的 group
-// 如果 nodeId 为空，则获取所有的 group
-func GetGroups(nodeId string) (groups map[string]*Group, err error) {
-	resp, err := etcdclient.Get(etcdclient.KeyEtcdGroup, clientv3.WithPrefix())
+// GetGroups 获取包含 nid 的 group
+// 如果 nid 为空，则获取所有的 group
+func GetGroups(nid string) (groups map[string]*Group, err error) {
+	resp, err := etcdclient.Get(conf.Config.Group, client.WithPrefix())
 	if err != nil {
 		return
 	}
@@ -50,15 +58,18 @@ func GetGroups(nodeId string) (groups map[string]*Group, err error) {
 	for _, g := range resp.Kvs {
 		group := new(Group)
 		if e := json.Unmarshal(g.Value, group); e != nil {
-			logger.Warnf("group[%s] umarshal err: %s", string(g.Key), e.Error())
+			log.Warnf("group[%s] umarshal err: %s", string(g.Key), e.Error())
 			continue
 		}
-		//获取全部group或者包含nodeId的group
-		if len(nodeId) == 0 || group.Included(nodeId) {
+		if len(nid) == 0 || group.Included(nid) {
 			groups[group.ID] = group
 		}
 	}
 	return
+}
+
+func WatchGroups() client.WatchChan {
+	return etcdclient.Watch(conf.Config.Group, client.WithPrefix(), client.WithPrevKV())
 }
 
 func GetGroupFromKv(key, value []byte) (g *Group, err error) {
@@ -69,42 +80,59 @@ func GetGroupFromKv(key, value []byte) (g *Group, err error) {
 	return
 }
 
-func DeleteGroupById(id string) (*clientv3.DeleteResponse, error) {
-	return etcdclient.Delete(GetGroupKey(id))
+func DeleteGroupById(id string) (*client.DeleteResponse, error) {
+	return etcdclient.Delete(GroupKey(id))
 }
 
-func GetGroupKey(groupId string) string {
-	return etcdclient.KeyEtcdGroup + groupId
+func GroupKey(id string) string {
+	return conf.Config.Group + id
 }
 
-//func (g *Group) Key() string {
-//	return GroupKey(g.ID)
-//}
-//
-func (group *Group) Put(modRev int64) (*clientv3.PutResponse, error) {
-	b, err := json.Marshal(group)
+func (g *Group) Key() string {
+	return GroupKey(g.ID)
+}
+
+func (g *Group) Put(modRev int64) (*client.PutResponse, error) {
+	b, err := json.Marshal(g)
 	if err != nil {
 		return nil, err
 	}
-	return etcdclient.PutWithModRev(GetGroupKey(group.ID), string(b), modRev)
+
+	return etcdclient.PutWithModRev(g.Key(), string(b), modRev)
 }
-func IsValidAsKeyPath(s string) bool {
-	return strings.IndexAny(s, "/\\") == -1
-}
-func (group *Group) Check() error {
-	group.ID = strings.TrimSpace(group.ID)
-	if !IsValidAsKeyPath(group.ID) {
-		return errors.ErrIllegalNodeGroupId
+
+func (g *Group) Check() error {
+	g.ID = strings.TrimSpace(g.ID)
+	if !IsValidAsKeyPath(g.ID) {
+		return ErrIllegalNodeGroupId
 	}
 
-	group.Name = strings.TrimSpace(group.Name)
-	if len(group.Name) == 0 {
-		return errors.ErrEmptyNodeGroupName
+	g.Name = strings.TrimSpace(g.Name)
+	if len(g.Name) == 0 {
+		return ErrEmptyNodeGroupName
 	}
 
 	return nil
 }
 
+func (g *Group) Included(nid string) bool {
+	for i, count := 0, len(g.NodeIDs); i < count; i++ {
+		if nid == g.NodeIDs[i] {
+			return true
+		}
+	}
+
+	return false
+}
+
+
+func (group *Group) Check() error {
+	group.Name = strings.TrimSpace(group.Name)
+	if len(group.Name) == 0 {
+		return errors.ErrEmptyNodeGroupName
+	}
+	return nil
+}
 //group是否包含nodeId
 func (group *Group) Included(nodeId string) bool {
 	for i, count := 0, len(group.NodeIDs); i < count; i++ {
@@ -114,3 +142,4 @@ func (group *Group) Included(nodeId string) bool {
 	}
 	return false
 }
+*/

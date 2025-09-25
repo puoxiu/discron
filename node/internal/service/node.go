@@ -15,14 +15,16 @@ import (
 	"syscall"
 )
 
+
 // Node 执行 cron 命令服务的结构体
 type NodeServer struct {
 	*etcdclient.ServerReg
 	*models.Node
 	*cron.Cron
 
-	jobs   handler.Jobs // 和结点相关的任务
-	Groups handler.Groups
+	jobs handler.Jobs // 和结点相关的任务
+	//fixme
+	//Groups handler.Groups
 
 	models.Link
 	// 删除的 job id，用于 group 更新
@@ -45,7 +47,7 @@ func NewNodeServer() (*NodeServer, error) {
 	}
 	return &NodeServer{
 		Node: &models.Node{
-			ID:       uuid,
+			UUID:     uuid,
 			PID:      strconv.Itoa(os.Getpid()),
 			IP:       ip.String(),
 			Hostname: hostname,
@@ -64,8 +66,8 @@ func NewNodeServer() (*NodeServer, error) {
 
 // Check whether the node is registered with ETCD
 // If yes, PID is returned. If no, -1 is returned
-func (srv *NodeServer) exist(nodeId string) (pid int, err error) {
-	resp, err := etcdclient.Get(etcdclient.KeyEtcdNode + nodeId)
+func (srv *NodeServer) exist(nodeUUID string) (pid int, err error) {
+	resp, err := etcdclient.Get(fmt.Sprintf(etcdclient.KeyEtcdNode, nodeUUID))
 	if err != nil {
 		return
 	}
@@ -75,7 +77,7 @@ func (srv *NodeServer) exist(nodeId string) (pid int, err error) {
 	}
 
 	if pid, err = strconv.Atoi(string(resp.Kvs[0].Value)); err != nil {
-		if _, err = etcdclient.Delete(etcdclient.KeyEtcdNode + nodeId); err != nil {
+		if _, err = etcdclient.Delete(fmt.Sprintf(etcdclient.KeyEtcdNode, nodeUUID)); err != nil {
 			return
 		}
 		return -1, nil
@@ -95,15 +97,15 @@ func (srv *NodeServer) exist(nodeId string) (pid int, err error) {
 
 // Register into ETCD with /crony/node/<node_id>
 func (srv *NodeServer) Register() error {
-	pid, err := srv.exist(srv.ID)
+	pid, err := srv.exist(srv.UUID)
 	if err != nil {
 		return err
 	}
 	if pid != -1 {
-		return fmt.Errorf("node[%s] with pid[%d] exist", srv.ID, pid)
+		return fmt.Errorf("node[%s] with pid[%d] exist", srv.UUID, pid)
 	}
 	//creates a new lease
-	if err := srv.ServerReg.Register(etcdclient.KeyEtcdNode+srv.ID, srv.PID); err != nil {
+	if err := srv.ServerReg.Register(fmt.Sprintf(etcdclient.KeyEtcdNode, srv.UUID), srv.PID); err != nil {
 		return err
 	}
 	return nil
@@ -111,40 +113,41 @@ func (srv *NodeServer) Register() error {
 
 // 停止服务
 func (srv *NodeServer) Stop(i interface{}) {
-	//todo n.Node.Down()
-	//todo 删除key值
+	etcdclient.Delete(fmt.Sprintf(etcdclient.KeyEtcdNode, srv.UUID))
+	srv.Down()
+
 	srv.Client.Close()
 	srv.Cron.Stop()
 }
 
-func (srv *NodeServer) Run() (err error) {
-	//todo defer
+//todo On 结点实例停用后，在 mongoDB 中去掉存活信息
+func (srv *NodeServer) Down() {
+	/*	n.Alived, n.DownTime = false, time.Now()
+		n.SyncToMgo()*/
+}
 
+func (srv *NodeServer) Run() (err error) {
+
+	defer func() {
+		if err != nil {
+			srv.Stop(err)
+		}
+	}()
 	if err = srv.loadJobs(); err != nil {
 		return
 	}
 	//start cron
 	srv.Cron.Start()
-	//todo watchJobs
-	//go n.watchJobs()
-	//todo watchExcutingProc
-	//go n.watchExcutingProc()
-	//todo watchGroups
-	//go n.watchGroups()
-	//todo watchOnce
-	//go n.watchOnce()
-	// todo node into mysql
+	go srv.watchJobs()
+	go srv.watchKilledProc()
+	go srv.watchOnce()
 	//n.Node.On()
 	return
 }
 
 func (srv *NodeServer) loadJobs() (err error) {
-	//先获取所有的分组
-	if srv.Groups, err = handler.GetGroups(""); err != nil {
-		return
-	}
 	//再获取本机分配的定时任务
-	jobs, err := handler.GetJobs(srv.ID)
+	jobs, err := handler.GetJobs(srv.UUID)
 	if err != nil {
 		return
 	}
@@ -155,7 +158,7 @@ func (srv *NodeServer) loadJobs() (err error) {
 	srv.jobs = jobs
 
 	for _, j := range jobs {
-		j.InitNodeInfo(srv.ID, srv.Hostname, srv.IP)
+		j.InitNodeInfo(srv.UUID, srv.Hostname, srv.IP)
 		srv.addJob(j, false)
 	}
 
@@ -166,20 +169,20 @@ func (srv *NodeServer) loadJobs() (err error) {
 func (srv *NodeServer) addJob(j *handler.Job, notice bool) {
 	taskFunc := handler.CreateJob(j)
 	if taskFunc == nil {
-		logger.Errorf("创建任务处理Job失败,不支持的任务协议#%s", j.JobType)
+		logger.GetLogger().Error(fmt.Sprintf("创建任务处理Job失败,不支持的任务协议#%s", j.Type))
 		return
 	}
 	err := goutil.PanicToError(func() {
 		srv.Cron.AddFunc(j.Spec, taskFunc, srv.jobCronName(j.ID))
 	})
 	if err != nil {
-		logger.Errorf("添加任务到调度器失败#%v", err.Error())
+		logger.GetLogger().Error(fmt.Sprintf("添加任务到调度器失败#%v", err.Error()))
 	}
 
 	return
 }
-func (srv *NodeServer) jobCronName(jobId string) string {
-	return srv.ID + "/" + jobId
+func (srv *NodeServer) jobCronName(jobId int) string {
+	return fmt.Sprintf(srv.UUID+"/%d", jobId)
 }
 
 func (srv *NodeServer) modifyJob(j *handler.Job) {
@@ -196,15 +199,12 @@ func (srv *NodeServer) modifyJob(j *handler.Job) {
 	return
 }
 
-//todo error
-func (srv *NodeServer) deleteJob(jobId string) {
+func (srv *NodeServer) deleteJob(jobId int) {
 	if _, ok := srv.jobs[jobId]; ok {
-		//存在则删除并且删除任务
-		//todo into db
+		//存在则删除并且移除任务
 		srv.Cron.RemoveJob(srv.jobCronName(jobId))
 		delete(srv.jobs, jobId)
 		return
 	}
-	//删除
 	return
 }

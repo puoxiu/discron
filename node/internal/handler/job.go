@@ -4,12 +4,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"go.etcd.io/etcd/client/v3"
-	"github.com/robfig/cron/v3"
+	"github.com/jakecoffman/cron"
 	"github.com/puoxiu/discron/common/models"
+	"github.com/puoxiu/discron/common/pkg/dbclient"
 	"github.com/puoxiu/discron/common/pkg/etcdclient"
 	"github.com/puoxiu/discron/common/pkg/logger"
 	"github.com/puoxiu/discron/common/pkg/utils"
 	"github.com/puoxiu/discron/common/pkg/utils/errors"
+	"runtime"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -17,15 +20,15 @@ import (
 type Job struct {
 	*models.Job
 }
-type Jobs map[string]*Job
+type Jobs map[int]*Job
 
-func JobKey(nodeId string, group, id string) string {
-	return etcdclient.KeyEtcdJob + nodeId + "/" + group + "/" + id
+func JobKey(nodeUUID string, groupId, jobId int) string {
+	return fmt.Sprintf(etcdclient.KeyEtcdJob, nodeUUID, groupId, jobId)
 }
 
 // Note: this function did't check the job.
-func GetJob(nodeId, group, id string) (job *Job, err error) {
-	job, _, err = GetJobAndRev(nodeId, group, id)
+func GetJob(nodeUUID string, groupId, jobId int) (job *Job, err error) {
+	job, _, err = GetJobAndRev(nodeUUID, groupId, jobId)
 	return
 }
 
@@ -55,8 +58,8 @@ func (j *Job) String() string {
 	return string(data)
 }
 
-func GetJobAndRev(nodeId, group, id string) (job *Job, rev int64, err error) {
-	resp, err := etcdclient.Get(JobKey(nodeId, group, id))
+func GetJobAndRev(nodeUUID string, groupId, jobId int) (job *Job, rev int64, err error) {
+	resp, err := etcdclient.Get(JobKey(nodeUUID, groupId, jobId))
 	if err != nil {
 		return
 	}
@@ -75,18 +78,18 @@ func GetJobAndRev(nodeId, group, id string) (job *Job, rev int64, err error) {
 	return
 }
 
-func DeleteJob(nodeId, group, id string) (resp *clientv3.DeleteResponse, err error) {
-	return etcdclient.Delete(JobKey(nodeId, group, id))
+func DeleteJob(nodeUUID string, groupId, jobId int) (resp *clientv3.DeleteResponse, err error) {
+	return etcdclient.Delete(JobKey(nodeUUID, groupId, jobId))
 }
 
-func GetJobs(nodeId string) (jobs map[string]*Job, err error) {
-	resp, err := etcdclient.Get(etcdclient.KeyEtcdJob+nodeId, clientv3.WithPrefix())
+func GetJobs(nodeUUID string) (jobs Jobs, err error) {
+	resp, err := etcdclient.Get(fmt.Sprintf(etcdclient.KeyEtcdJobProfile, nodeUUID), clientv3.WithPrefix())
 	if err != nil {
 		return
 	}
 
 	count := len(resp.Kvs)
-	jobs = make(map[string]*Job, count)
+	jobs = make(Jobs, count)
 	if count == 0 {
 		return
 	}
@@ -94,12 +97,12 @@ func GetJobs(nodeId string) (jobs map[string]*Job, err error) {
 	for _, j := range resp.Kvs {
 		job := new(Job)
 		if e := json.Unmarshal(j.Value, job); e != nil {
-			logger.Warnf("job[%s] umarshal err: %s", string(j.Key), e.Error())
+			logger.GetLogger().Warn(fmt.Sprintf("job[%s] umarshal err: %s", string(j.Key), e.Error()))
 			continue
 		}
 		//todo
 		if err := job.Valid(); err != nil {
-			logger.Warnf("job[%s] is invalid: %s", string(j.Key), err.Error())
+			logger.GetLogger().Warn(fmt.Sprintf("job[%s] is invalid: %s", string(j.Key), err.Error()))
 			continue
 		}
 		//todo 执行类型
@@ -107,6 +110,39 @@ func GetJobs(nodeId string) (jobs map[string]*Job, err error) {
 		jobs[job.ID] = job
 	}
 	return
+}
+
+func (j *Job) RunWithRecovery() {
+	defer func() {
+		if r := recover(); r != nil {
+			const size = 64 << 10
+			buf := make([]byte, size)
+			buf = buf[:runtime.Stack(buf, false)]
+			logger.GetLogger().Warn(fmt.Sprintf("panic running job: %v\n%s", r, buf))
+		}
+	}()
+	t := time.Now()
+	jobLogId, err := j.CreateJobLog()
+	if err != nil {
+		logger.GetLogger().Warn(fmt.Sprintf("Failed to write to job log with jobID:%d nodeUUID: %s error:%s", j.ID, j.RunOn, err.Error()))
+	}
+	h := CreateHandler(j)
+	if h == nil {
+		//logger and error
+		return
+	}
+	result, err := h.Run(j)
+	if err != nil {
+		err = j.Fail(jobLogId, t, err.Error(), 0)
+		if err != nil {
+			logger.GetLogger().Warn(fmt.Sprintf("Failed to write to job log with jobID:%d nodeUUID: %s error:%s", j.ID, j.RunOn, err.Error()))
+		}
+	} else {
+		err = j.Success(jobLogId, t, result, 0)
+		if err != nil {
+			logger.GetLogger().Warn(fmt.Sprintf("Failed to write to job log with jobID:%d nodeUUID: %s error:%s", j.ID, j.RunOn, err.Error()))
+		}
+	}
 }
 
 func CreateJob(j *Job) cron.FuncJob {
@@ -121,25 +157,34 @@ func CreateJob(j *Job) cron.FuncJob {
 
 		handler.concurrencyQueue.Add()
 		defer handler.concurrencyQueue.Done()*/
-		logger.Infof("开始执行任务#%s#命令-%s", j.Name, j.Command)
+		logger.GetLogger().Info(fmt.Sprintf("开始执行任务#%s#命令-%s", j.Name, j.Command))
 		// 默认只运行任务一次
 		var execTimes int = 1
 		if j.RetryTimes > 0 {
 			execTimes += j.RetryTimes
 		}
-		var i int = 0
+		var i = 0
 		var output string
 		var err error
+		var jobLogId int
+		t := time.Now()
+		jobLogId, err = j.CreateJobLog()
+		if err != nil {
+			logger.GetLogger().Warn(fmt.Sprintf("Failed to write to job log with jobID:%d nodeUUID: %s error:%s", j.ID, j.RunOn, err.Error()))
+		}
 		for i < execTimes {
 			output, err = h.Run(j)
 			if err == nil {
 				//执行成功
-				//todo insert into db
+				err = j.Success(jobLogId, t, output, i)
+				if err != nil {
+					logger.GetLogger().Warn(fmt.Sprintf("Failed to write to job log with jobID:%d nodeUUID: %s error:%s", j.ID, j.RunOn, err.Error()))
+				}
 				return
 			}
 			i++
 			if i < execTimes {
-				logger.Warnf("任务执行失败#任务id-%d#重试第%d次#输出-%s#错误-%s", j.ID, i, output, err.Error())
+				logger.GetLogger().Warn(fmt.Sprintf("任务执行失败#任务id-%d#重试第%d次#输出-%s#错误-%s", j.ID, i, output, err.Error()))
 				if j.RetryInterval > 0 {
 					time.Sleep(time.Duration(j.RetryInterval) * time.Second)
 				} else {
@@ -148,17 +193,23 @@ func CreateJob(j *Job) cron.FuncJob {
 				}
 			}
 		}
+		//执行全部失败
+		err = j.Fail(jobLogId, t, err.Error(), execTimes)
+		if err != nil {
+			logger.GetLogger().Warn(fmt.Sprintf("Failed to write to job log with jobID:%d nodeUUID: %s error:%s", j.ID, j.RunOn, err.Error()))
+		}
 		// todo 任务执行后置操作 发邮件等
-		logger.Infof("任务完成#%s#命令-%s", j.Name, j.Command)
+		logger.GetLogger().Info(fmt.Sprintf("任务完成#%s#命令-%s", j.Name, j.Command))
 	}
 	return taskFunc
 }
 
 func (j *Job) Check() error {
-	j.ID = strings.TrimSpace(j.ID)
-	if !IsValidAsKeyPath(j.ID) {
-		return errors.ErrIllegalJobId
-	}
+	//j.ID = strings.TrimSpace(j.ID)
+	//todo
+	//if !IsValidAsKeyPath(j.ID) {
+	//	return errors.ErrIllegalJobId
+	//}
 
 	j.Name = strings.TrimSpace(j.Name)
 	if len(j.Name) == 0 {
@@ -170,22 +221,15 @@ func (j *Job) Check() error {
 	//	j.Group = DefaultJobGroup
 	//}
 
-	if !IsValidAsKeyPath(j.Group) {
-		return errors.ErrIllegalJobGroupName
-	}
+	//if !IsValidAsKeyPath(j.Group) {
+	//	return errors.ErrIllegalJobGroupName
+	//}
 
 	if j.LogExpiration < 0 {
 		j.LogExpiration = 0
 	}
 
-	j.User = strings.TrimSpace(j.User)
-	//todo
-	//for i := range j.Rules {
-	//	id := strings.TrimSpace(j.Rules[i].ID)
-	//	if id == "" || strings.HasPrefix(id, "NEW") {
-	//		j.Rules[i].ID = NextID()
-	//	}
-	//}
+	j.CmdUser = strings.TrimSpace(j.CmdUser)
 
 	// 不修改 Command 的内容，简单判断是否为空
 	if len(strings.TrimSpace(j.Command)) == 0 {
@@ -194,8 +238,8 @@ func (j *Job) Check() error {
 
 	return j.Valid()
 }
-func WatchJobs(nodeId string) clientv3.WatchChan {
-	return etcdclient.Watch(etcdclient.KeyEtcdJob+nodeId, clientv3.WithPrefix())
+func WatchJobs(nodeUUID string) clientv3.WatchChan {
+	return etcdclient.Watch(fmt.Sprintf(etcdclient.KeyEtcdJobProfile, nodeUUID), clientv3.WithPrefix())
 }
 
 func GetJobFromKv(key, value []byte) (job *Job, err error) {
@@ -262,11 +306,58 @@ func ModifyJob(job *Job) {
 		n.link.addJob(oJob)*/
 }
 
-// 从 job etcd 的 key 中取 id
-func GetJobIDFromKey(key string) string {
+// 从 etcd 的 key 中取 job_id
+func GetJobIDFromKey(key string) int {
 	index := strings.LastIndex(key, "/")
 	if index < 0 {
-		return ""
+		return 0
 	}
-	return key[index+1:]
+	jobId, err := strconv.Atoi(key[index+1:])
+	if err != nil {
+		return 0
+	}
+	return jobId
+}
+
+//todo 转移至crony admin
+func (j *Job) Insert2Db() error {
+	return dbclient.Insert(models.CronixJobTableName, j)
+}
+
+//将每次执行任务的结果写入日志
+func (j *Job) CreateJobLog() (int, error) {
+	start := time.Now()
+	jobLog := &models.JobLog{
+		Name:      j.Name,
+		GroupId:   j.GroupId,
+		JobId:     j.ID,
+		Command:   j.Command,
+		IP:        j.Ip,
+		Hostname:  j.Hostname,
+		NodeUUID:  j.RunOn,
+		Spec:      j.Spec,
+		StartTime: start.Unix(),
+	}
+	return jobLog.Insert()
+}
+
+func UpdateJobLog(jobLogId int, start time.Time, output string, retry int, success bool) error {
+	end := time.Now()
+	jobLog := &models.JobLog{
+		ID:         jobLogId,
+		StartTime:  start.Unix(),
+		RetryTimes: retry,
+		Success:    success,
+		Output:     output,
+		EndTime:    end.Unix(),
+	}
+	return jobLog.Update()
+}
+func (j *Job) Success(jobLogId int, start time.Time, output string, retry int) error {
+	return UpdateJobLog(jobLogId, start, output, retry, true)
+}
+
+func (j *Job) Fail(jobLogId int, start time.Time, errMsg string, retry int) error {
+	//todo notify
+	return UpdateJobLog(jobLogId, start, errMsg, retry, false)
 }

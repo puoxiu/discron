@@ -1,5 +1,15 @@
 package models
 
+const (
+	CronixNodeTableName      = "node"
+	CronixGroupTableName     = "group"
+	CronixNodeGroupTableName = "node_group"
+	CronixUserGroupTableName = "user_group"
+	CronixJobTableName       = "job"
+	CronixJobLogTableName    = "job_log"
+	CronixUserTableName      = "user"
+)
+
 type (
 	//todo add ini
 	Mysql struct {

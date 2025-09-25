@@ -33,7 +33,7 @@ email:
   nickname: "test"
 
 log:
-  level: "info"
+  level: "debug"
   format: "console"
   prefix: "[discron-node]"
   director: "logs"

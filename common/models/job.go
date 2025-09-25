@@ -1,7 +1,8 @@
 package models
 
 import (
-	"github.com/robfig/cron/v3"
+	"fmt"
+	"github.com/puoxiu/discron/common/pkg/dbclient"
 	"sync"
 	"time"
 )
@@ -16,73 +17,87 @@ const (
 	HTTPMethodPost = 2
 
 	KindAlone = 1
+
+	//job log  `status` tinyint(1) NOT NULL DEFAULT '1' COMMENT "1->成功 2->正在运行 3->失败",
+	JobLogStatusSuccess = 1
+	JobLogStatusProcess = 2
+	JobLogStatusFail    = 3
 )
 
 // 需要执行的 cron cmd 命令
 // 注册到 /cronsun/cmd/groupName/<id>
 type Job struct {
-	ID      string     `json:"id"`
-	Name    string     `json:"name"`
-	Group   string     `json:"group"`
-	Command string     `json:"cmd"`
-	User    string     `json:"user"`
-	Rules   []*JobRule `json:"rules"`
-	Pause   bool       `json:"pause"`   // 可手工控制的状态
-	Timeout int        `json:"timeout"` // 任务执行时间超时设置，大于 0 时有效
+	ID      int    `json:"id" gorm:"id"`
+	Name    string `json:"name" gorm:"name"`
+	GroupId int    `json:"group" gorm:"gid"`
+	Command string `json:"command" gorm:"command"`
+	CmdUser string `json:"user" gorm:"cmd_user"`
+	Pause   bool   `json:"pause"`                  // 可手工控制的状态
+	Timeout int    `json:"timeout" gorm:"timeout"` // 任务执行时间超时设置，大于 0 时有效
 	// 设置任务在单个节点上可以同时允许多少个
 	// 针对两次任务执行间隔比任务执行时间要长的任务启用
 	Parallels int64 `json:"parallels"`
 	// 执行任务失败重试次数
 	// 默认为 0，不重试
-	Retry int `json:"retry"`
+	RetryTimes int `json:"retry_times" gorm:"retry_times"`
 	// 执行任务失败重试时间间隔
 	// 单位秒，如果不大于 0 则马上重试
-	Interval int `json:"interval"`
+	RetryInterval int64 `json:"retry_interval" gorm:"retry_interval"`
 	// 任务类型
 	// 0: 普通任务
 	// 1: 单机任务
 	// 如果为单机任务，node 加载任务的时候 Parallels 设置 1
-	Kind int `json:"kind"`
-	// 平均执行时间，单位 ms
-	AvgTime int64 `json:"avg_time"`
-	// 执行失败发送通知
-	FailNotify bool `json:"fail_notify"`
+	Kind       int     `json:"kind" gorm:"kind"`
+	Type       JobType `json:"job_type" gorm:"type"`
+	HttpMethod int     `json:"http_method" gorm:"http_method"`
+	// 执行失败是否发送通知
+	NotifyStatus bool `json:"notify_status" gorm:"notify_status"`
+	NotifyType   int  `json:"notify_type" gorm:"notify_type"`
+	Status       int  `json:"status" gorm:"status"`
 	// 发送通知地址
-	To []string `json:"to"`
+	NotifyTo     []byte `json:"notify_to" gorm:"-"`
+	NotifyToType []byte `json:"notify_to_type" gorm:"-"`
+	Spec         string `json:"spec" gorm:"spec"`
+
+	Created int64 `json:"created" gorm:"created"`
+	Updated int64 `json:"updated" gorm:"updated"`
+	// 平均执行时间，单位 ms
+	AvgTime int64 `json:"avg_time" gorm:"-"`
 	// 单独对任务指定日志清除时间
-	LogExpiration int `json:"log_expiration"`
+	LogExpiration int `json:"log_expiration" gorm:"-"`
 
 	// 执行任务的结点，用于记录 job log
-	RunOn    string
-	Hostname string
-	Ip       string
+	RunOn    string `json:"run_on" gorm:"-"`
+	Hostname string `json:"host_name" gorm:"-"`
+	Ip       string `json:"ip" gorm:"-"`
 	// 用于存储分隔后的任务
-	Cmd []string
+	Cmd []string `json:"cmd" gorm:"-"`
 	// 控制同时执行任务数
-	Count         *int64  `json:"-"`
-	JobType       JobType `json:"job_type"`
-	HttpMethod    int     `json:"http_method"`
-	HttpUrl       string  `json:"http_url"`
-	RetryTimes    int     `json:"retry_times"`
-	RetryInterval int     `json:"retry_interval"`
-
-	Spec string `json:"spec"`
+	Count *int64 `json:"-"`
 }
 
-type JobRule struct {
-	ID             string   `json:"id"`
-	Timer          string   `json:"timer"`
-	GroupIDs       []string `json:"gids"`
-	NodeIDs        []string `json:"nids"`
-	ExcludeNodeIDs []string `json:"exclude_nids"`
+//日志输出
+type JobLog struct {
+	ID       int    `json:"id" gorm:"id"`
+	Name     string `json:"name" gorm:"name"`
+	GroupId  int    `json:"group" gorm:"gid"`
+	JobId    int    `json:"jid" gorm:"jid"`
+	Command  string `json:"command" gorm:"command"`
+	IP       string `json:"ip" gorm:"ip"` // node ip
+	Hostname string `json:"hostname" gorm:"hostname"`
+	NodeUUID string `json:"uuid" gorm:"node_uuid"`
+	Success  bool   `json:"success" gorm:"success"`
 
-	Schedule cron.Schedule `json:"-"`
+	Output string `json:"output" gorm:"output"`
+	Spec   string `json:"spec" gorm:"spec"`
+
+	// 执行任务失败重试次数
+	// 默认为 0，不重试
+	RetryTimes int   `json:"retry_times" gorm:"retry_times"`
+	StartTime  int64 `json:"start_time" gorm:"start_time"`
+	EndTime    int64 `json:"end_time" gorm:"end_time"`
 }
 
-type Cmd struct {
-	*Job
-	*JobRule
-}
 type jobLink struct {
 	gname string
 	// rule id
@@ -101,10 +116,10 @@ type JobProcVal struct {
 // key 会自动过期，防止进程意外退出后没有清除相关 key，过期时间可配置
 type JobProc struct {
 	// parse from key path
-	ID     string `json:"id"` // pid
-	JobID  string `json:"jobId"`
-	Group  string `json:"group"`
-	NodeID string `json:"nodeId"`
+	ID       int    `json:"id"` // pid
+	JobID    int    `json:"jobId"`
+	GroupId  int    `json:"group"`
+	NodeUUID string `json:"node_uuid"`
 	// parse from value
 	JobProcVal
 
@@ -113,7 +128,42 @@ type JobProc struct {
 	Wg     sync.WaitGroup
 }
 
-func (j *Job) InitNodeInfo(nodeID, hostname, ip string) {
+func (j *Job) InitNodeInfo(nodeUUID, hostname, ip string) {
 	var c int64
-	j.Count, j.RunOn, j.Hostname, j.Ip = &c, nodeID, hostname, ip
+	j.Count, j.RunOn, j.Hostname, j.Ip = &c, nodeUUID, hostname, ip
+}
+
+func (j *Job) Insert() (insertId int, err error) {
+	err = dbclient.GetMysqlDB().Table(CronixJobTableName).Create(j).Error
+	if err == nil {
+		insertId = j.ID
+	}
+	return
+}
+
+// 更新
+func (j *Job) Update() error {
+	return dbclient.GetMysqlDB().Table(CronixJobTableName).Updates(j).Error
+}
+
+func (j *Job) Delete() error {
+	return dbclient.GetMysqlDB().Exec(fmt.Sprintf("delete from %s where id = ?", CronixJobTableName), j.ID).Error
+}
+
+func (jb *JobLog) Insert() (insertId int, err error) {
+	err = dbclient.GetMysqlDB().Table(CronixJobLogTableName).Create(jb).Error
+	if err == nil {
+		insertId = jb.ID
+	}
+	return
+}
+
+// 更新
+func (jb *JobLog) Update() error {
+	//只会更新非零字段
+	return dbclient.GetMysqlDB().Table(CronixJobLogTableName).Updates(jb).Error
+}
+
+func (jb *JobLog) Delete() error {
+	return dbclient.GetMysqlDB().Exec(fmt.Sprintf("delete from %s where id = ?", CronixJobLogTableName), jb.ID).Error
 }
