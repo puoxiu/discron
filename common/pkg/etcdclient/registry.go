@@ -2,9 +2,10 @@ package etcdclient
 
 import (
 	"context"
-	"fmt"
+
+	"github.com/puoxiu/discron/common/pkg/logger"
 	"go.etcd.io/etcd/client/v3"
-	
+
 	"time"
 )
 
@@ -70,10 +71,10 @@ func (s *ServerReg) keepAlive() {
 			return
 		case leaseKeepResp := <-s.keepAliveChan:
 			if leaseKeepResp == nil {
-				fmt.Printf("the lease renewal function has been turned off\n")
+				logger.GetLogger().Info("the lease renewal function has been turned off\n")
 				return
 			} else {
-				fmt.Printf("renew the lease successfully.\n")
+				logger.GetLogger().Info("renew the lease successfully")
 			}
 		}
 	}

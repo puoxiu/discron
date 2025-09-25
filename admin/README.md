@@ -1,5 +1,29 @@
 # admin 帮助文档
 
+ ```mermaid
+ graph TD
+    A([main]) --> B[server.NewApiServer]
+    B --> C1[解析命令行参数（pprof/健康检查）]
+    B --> C2[加载环境与配置（系统/日志/MySQL/Etcd）]
+    B --> C3[初始化依赖（日志→MySQL→Etcd）]
+    B --> C4[创建ApiServer，配置Gin模式+信号监听]
+    C4 --> D[业务注册]
+    D --> D1[注册HTTP路由（/ping+/job接口）]
+    D --> D2[启动NodeWatcher（加载Etcd节点+持续监听）]
+    D --> E[srv.ListenAndServe]
+    E --> E1[初始化Gin引擎+Panic恢复中间件]
+    E --> E2[启动HTTP服务，处理外部请求]
+    E --> E3[NodeWatcher持续更新节点列表]
+    F[收到关闭信号（SIGINT/SIGHUP/SIGTERM）] --> G[ApiServer.Shutdown]
+    G --> G1[执行关闭钩子]
+    G --> G2[等待1秒释放资源]
+    G --> G3[关闭HTTP服务]
+    G --> G4[关闭日志句柄]
+    G4 --> H[服务退出]
+```
+
+
+
 ## admin 整体流程概览
 > admin 是基于 Gin 框架构建的 HTTP 微服务，核心承担两大职责：
 1. 对外提供业务 API 接口，支撑前端或其他服务的请求；

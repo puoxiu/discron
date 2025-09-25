@@ -2,6 +2,7 @@ package handler
 
 import (
 	"github.com/gin-gonic/gin"
+	"net/http"
 )
 
 func RegisterRouters(c *gin.Engine) {
@@ -11,4 +12,59 @@ func RegisterRouters(c *gin.Engine) {
 			c.JSON(200, "pong")
 		})
 	}
+	job := c.Group("/job")
+	{
+		job.POST("add", defaultJobRouter.CreateOrUpdate)
+		job.POST("del", defaultJobRouter.Delete)
+		job.POST("find", defaultJobRouter.FindById)
+		job.POST("search", defaultJobRouter.Search)
+	}
+}
+
+type Response struct {
+	Code int         `json:"code"`
+	Data interface{} `json:"data"`
+	Msg  string      `json:"msg"`
+}
+
+const (
+	SUCCESS = 200
+	ERROR   = 1000
+
+	ErrorRequestParameter = 1001
+)
+
+func Result(code int, data any, msg string, c *gin.Context) {
+	// 开始时间
+	c.JSON(http.StatusOK, Response{
+		Code: code,
+		Data: data,
+		Msg:  msg,
+	})
+}
+
+func Ok(c *gin.Context) {
+	Result(SUCCESS, map[string]any{}, "operation success", c)
+}
+
+func OkWithMessage(message string, c *gin.Context) {
+	Result(SUCCESS, map[string]any{}, message, c)
+}
+
+func OkWithData(data any, c *gin.Context) {
+	Result(SUCCESS, data, "operation success", c)
+}
+
+func OkWithDetailed(data any, message string, c *gin.Context) {
+	Result(SUCCESS, data, message, c)
+}
+
+func FailWithMessage(code int, message string, c *gin.Context) {
+	Result(code, map[string]any{}, message, c)
+}
+func FailWithCode(code int, c *gin.Context) {
+	Result(code, map[string]any{}, "operation failed", c)
+}
+func FailWithDetailed(code int, data any, message string, c *gin.Context) {
+	Result(code, data, message, c)
 }
