@@ -11,40 +11,31 @@ import (
 	"github.com/puoxiu/discron/common/pkg/server"
 )
 
-const  (
-	ServerName="admin"
+
+const (
+	ServerName = "admin"
 )
 
 func main() {
-	// c, err := config.LoadConfig("admin", "testing", "main")
-	// if err != nil {
-	// 	fmt.Println(err)
-	// 	os.Exit(111)
-	// }
-	// fmt.Println(c)
-
 	srv, err := server.NewApiServer(ServerName)
-	if err!= nil {
+	if err != nil {
 		logger.GetLogger().Error(fmt.Sprintf("new api server error:%s", err.Error()))
-		os.Exit(111)
+		os.Exit(1)
 	}
-	// logger.Infof("logger init success")
-
+	//注册API路由业务
 	srv.RegisterRouters(handler.RegisterRouters)
-	
-	// 
+	service.DefaultNodeWatcher = service.NewNodeWatcherService()
 	err = service.DefaultNodeWatcher.Watch()
-
-	if err!= nil {
-		logger.GetLogger().Error(fmt.Sprintf("node watcher error:%s", err.Error()))
-		os.Exit(111)
+	if err != nil {
+		logger.GetLogger().Error(fmt.Sprintf("resolver  error:%#v", err))
 	}
+	//todo 邮件相关操作
 
+	//todo 定时清理日志
 	err = srv.ListenAndServe()
-	if err!= nil {
-		logger.GetLogger().Error(fmt.Sprintf("api-server:listen and serve error:%s", err.Error()))
-		os.Exit(111)
+	if err != nil {
+		logger.GetLogger().Error(fmt.Sprintf("startup api server error:%v", err.Error()))
+		os.Exit(1)
 	}
-
-	logger.GetLogger().Info("api-server:listen and serve success")
+	os.Exit(0)
 }

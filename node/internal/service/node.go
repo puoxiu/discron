@@ -96,7 +96,7 @@ func (srv *NodeServer) exist(nodeUUID string) (pid int, err error) {
 	return -1, nil
 }
 
-// Register into ETCD with /crony/node/<node_id>
+// Register into ETCD with /Cronix/node/<node_id>
 func (srv *NodeServer) Register() error {
 	pid, err := srv.exist(srv.UUID)
 	if err != nil {
@@ -224,10 +224,12 @@ func (srv *NodeServer) modifyJob(j *handler.Job) {
 }
 
 func (srv *NodeServer) deleteJob(jobId int) {
-	if _, ok := srv.jobs[jobId]; ok {
+	if job, ok := srv.jobs[jobId]; ok {
 		//存在则删除并且移除任务
 		srv.Cron.RemoveJob(srv.jobCronName(jobId))
 		delete(srv.jobs, jobId)
+		//删除数据库
+		_ = job.Delete()
 		return
 	}
 	return

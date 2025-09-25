@@ -1,10 +1,13 @@
 package service
 
 import (
+	"fmt"
+
+	"github.com/puoxiu/discron/admin/internal/model/request"
 	"github.com/puoxiu/discron/common/models"
 	"github.com/puoxiu/discron/common/pkg/dbclient"
-	"github.com/puoxiu/discron/admin/internal/model/request"
-	
+	"github.com/puoxiu/discron/common/pkg/etcdclient"
+	"github.com/puoxiu/discron/common/pkg/logger"
 )
 
 type JobService struct {
@@ -73,4 +76,33 @@ func (j *JobService) SearchJobLog(s *request.ReqJobLogSearch) ([]models.JobLog, 
 		return nil, 0, err
 	}
 	return jobLogs, total, nil
+}
+
+
+const MaxJobCount = 10000
+
+//优先分配工作任务最少的结点
+func (j *JobService) AutoAllocateNode() string {
+	//获取所有活着的节点
+	nodeList := DefaultNodeWatcher.List2Array()
+
+	resultCount, resultNodeUUID := MaxJobCount, ""
+	for _, nodeUUID := range nodeList {
+		count, err := DefaultNodeWatcher.GetJobCount(nodeUUID)
+		if err != nil {
+			logger.GetLogger().Warn(fmt.Sprintf("node[%s] get job conut error:%s", nodeUUID, err.Error()))
+			continue
+		}
+		if resultCount > count {
+			resultCount, resultNodeUUID = count, nodeUUID
+		}
+	}
+	return resultNodeUUID
+}
+
+
+//立即执行
+func (j *JobService) Once(once *request.ReqJobOnce) (err error) {
+	_, err = etcdclient.Put(fmt.Sprintf(etcdclient.KeyEtcdOnce, once.GroupId, once.JobId), once.NodeUUID)
+	return
 }

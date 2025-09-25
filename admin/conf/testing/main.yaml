@@ -40,4 +40,4 @@ log:
   showLine: false
   encode-level: "LowercaseLevelEncoder"
   stacktrace-key: "stacktrace"
-  log-in-console: false
+  log-in-console: true

@@ -5,8 +5,9 @@ import (
 	"github.com/puoxiu/discron/common/pkg/dbclient"
 	"github.com/puoxiu/discron/common/pkg/utils"
 	"github.com/puoxiu/discron/admin/internal/model/request"
+	"fmt"
+	"gorm.io/gorm"
 )
-
 
 type UserService struct {
 }
@@ -14,17 +15,22 @@ type UserService struct {
 var DefaultUserService = new(UserService)
 
 func (us *UserService) Login(username, password string) (u *models.User, err error) {
-	err = dbclient.GetMysqlDB().Table(models.CronixUserTableName).Where("username = ? And password = ?", username, utils.MD5(password)).Find(u).Error
+	u = new(models.User)
+	err = dbclient.GetMysqlDB().Select("id", "username", "email", "role", "created", "updated").Table(models.CronixUserTableName).Where("username = ? And password = ?", username, utils.MD5(password)).Find(u).Error
 	return
 }
 
 func (us *UserService) FindByUserName(username string) (u *models.User, err error) {
-	err = dbclient.GetMysqlDB().Table(models.CronixUserTableName).Where("username = ? ", username).Find(u).Error
+	u = new(models.User)
+	err = dbclient.GetMysqlDB().Table(models.CronixUserTableName).Where("username = ? ", username).First(u).Error
+	if err == gorm.ErrRecordNotFound {
+		return nil, nil
+	}
 	return
 }
 
 func (us *UserService) ChangePassword(userId int, oldPassword, newPassword string) error {
-	return dbclient.GetMysqlDB().Table(models.CronixUserTableName).Where("id = ? And password = ?", userId, utils.MD5(oldPassword)).Update("password", utils.MD5(newPassword)).Error
+	return dbclient.GetMysqlDB().Table(models.CronixUserTableName).Where("id = ? And password =? ", userId, utils.MD5(oldPassword)).Update("password", utils.MD5(newPassword)).Error
 }
 
 func (us *UserService) Search(s *request.ReqUserSearch) ([]models.User, int64, error) {
@@ -40,7 +46,7 @@ func (us *UserService) Search(s *request.ReqUserSearch) ([]models.User, int64, e
 	}
 	users := make([]models.User, 2)
 	var total int64
-	err := db.Select("id username email role").Limit(s.PageSize).Offset((s.Page - 1) * s.PageSize).Find(&users).Error
+	err := db.Select("id", "username", "email", "role", "created", "updated").Limit(s.PageSize).Offset((s.Page - 1) * s.PageSize).Find(&users).Error
 	if err != nil {
 		return nil, 0, err
 	}
@@ -49,4 +55,14 @@ func (us *UserService) Search(s *request.ReqUserSearch) ([]models.User, int64, e
 		return nil, 0, err
 	}
 	return users, total, nil
+}
+
+func (us *UserService) FindByGroupId(groupId int) ([]models.User, error) {
+	var users []models.User
+	sql := fmt.Sprintf("select u.id ,u.username ,u.email, u.role  from %s ug join %s u on ug.group_id = ? and ug.user_id = u.id", models.CronixUserGroupTableName, models.CronixUserTableName)
+	err := dbclient.GetMysqlDB().Raw(sql, groupId).Scan(&users).Error
+	if err != nil {
+		return nil, err
+	}
+	return users, nil
 }
