@@ -15,6 +15,7 @@ system:
   addr: 8888
   node-ttl: 5
   logclear: 12
+  version: "v0.0.1"
 
 etcd:
   endpoints:

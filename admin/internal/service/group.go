@@ -2,11 +2,18 @@ package service
 
 import (
 	"fmt"
+
+	"github.com/puoxiu/discron/admin/internal/model/request"
 	"github.com/puoxiu/discron/common/models"
 	"github.com/puoxiu/discron/common/pkg/dbclient"
 )
 
 type Groups map[int]*models.Group
+
+type GroupService struct {
+}
+
+var DefaultGroupService = new(GroupService)
 
 //todo
 func GetGroupById(groupId int) (group *models.Group, err error) {
@@ -35,4 +42,28 @@ func GetGroups(nodeUUID string) (groupsMap Groups, err error) {
 		groupsMap[group.ID] = group
 	}
 	return
+}
+
+func (n *GroupService) Search(s *request.ReqGroupSearch) ([]models.Group, int64, error) {
+	db := dbclient.GetMysqlDB().Table(models.CronixGroupTableName)
+	if len(s.Name) > 0 {
+		db = db.Where("name = ?", s.Name)
+	}
+	if s.Type > 0 {
+		db.Where("type = ?", s.Type)
+	}
+	if s.ID > 0 {
+		db.Where("id = ?", s.ID)
+	}
+	groups := make([]models.Group, 2)
+	var total int64
+	err := db.Limit(s.PageSize).Offset((s.Page - 1) * s.PageSize).Find(&groups).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	err = db.Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	return groups, total, nil
 }
