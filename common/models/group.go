@@ -1,8 +1,8 @@
 package models
 
-
 import (
 	"fmt"
+
 	"github.com/puoxiu/discron/common/pkg/dbclient"
 )
 
@@ -12,7 +12,7 @@ const (
 )
 
 type Group struct {
-	ID   int    `json:"id" gorm:"id"`
+	ID   int    `json:"id" gorm:"id;primaryKey"`
 	Name string `json:"name" gorm:"column:name" binding:"required"`
 	//分组类型
 	//Type    int   `json:"type" gorm:"column:type" binding:"required"`
@@ -40,7 +40,7 @@ func (g *Group) FindById() error {
 }
 
 type NodeGroup struct {
-	ID       int    `json:"id" gorm:"id"`
+	ID       int    `json:"id" gorm:"id;primaryKey"`
 	NodeUUID string `json:"node_uuid" gorm:"column:node_uuid" binding:"required"`
 	GroupId  int    `json:"group_id" gorm:"column:group_id" binding:"required"`
 }
@@ -63,7 +63,7 @@ func (g *NodeGroup) FindById() error {
 }
 
 type UserGroup struct {
-	ID      int `json:"id" gorm:"id"`
+	ID      int `json:"id" gorm:"id;primaryKey"`
 	UserId  int `json:"user_id" gorm:"column:user_id" binding:"required"`
 	GroupId int `json:"group_id" gorm:"column:group_id" binding:"required" `
 }

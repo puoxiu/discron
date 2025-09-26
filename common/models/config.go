@@ -1,13 +1,13 @@
 package models
 
 const (
-	CronixNodeTableName      = "node"
-	CronixGroupTableName     = "group"
-	CronixNodeGroupTableName = "node_group"
-	CronixUserGroupTableName = "user_group"
-	CronixJobTableName       = "job"
-	CronixJobLogTableName    = "job_log"
-	CronixUserTableName      = "user"
+	CronixNodeTableName      = "cronix_node"
+	CronixGroupTableName     = "cronix_group"
+	CronixNodeGroupTableName = "cronix_node_group"
+	CronixUserGroupTableName = "cronix_user_group"
+	CronixJobTableName       = "cronix_job"
+	CronixJobLogTableName    = "cronix_job_log"
+	CronixUserTableName      = "cronix_user"
 )
 
 type (

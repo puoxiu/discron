@@ -6,36 +6,40 @@ services:
     ports:
       - "3306:3306"
     environment:
-      MYSQL_ROOT_PASSWORD: root  # 根密码
-      MYSQL_DATABASE: cronix      # 自动创建数据库
-      MYSQL_USER: xing_cronix     
-      MYSQL_PASSWORD: xing_pwd 
-    # volumes:
-    #   - mysql-data:/var/lib/mysql
+      MYSQL_ROOT_PASSWORD: root          # 根密码（与业务代码一致）
+      MYSQL_DATABASE: cronix            # 自动创建目标数据库
+      MYSQL_USER: xing_cronix           # 业务用账号（可选）
+      MYSQL_PASSWORD: xing_pwd          # 业务账号密码
+      MYSQL_CHARSET: utf8mb4            # 避免中文乱码
+      MYSQL_COLLATION: utf8mb4_unicode_ci
+    volumes:
+      # 仅保留 SQL 脚本挂载（核心：每次启动容器自动执行 SQL 建表）
+      - ./script:/docker-entrypoint-initdb.d
     restart: always
     networks:
       - crony-network
+    # 健康检查：确保 MySQL 启动成功后再对外提供服务
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u root", "-p$$MYSQL_ROOT_PASSWORD"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  # etcd服务
   etcd:
     image: bitnami/etcd:3.5
     container_name: crony-etcd
     ports:
-      - "2379:2379"  # 客户端端口
-      - "2380:2380"  # 集群端口
+      - "2379:2379"
+      - "2380:2380"
     environment:
-      - ALLOW_NONE_AUTHENTICATION=yes  # 开发环境关闭认证
+      - ALLOW_NONE_AUTHENTICATION=yes
       - ETCD_ADVERTISE_CLIENT_URLS=http://127.0.0.1:2379
-    # volumes:
-    #   - etcd-data:/bitnami/etcd
+      - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
     restart: always
     networks:
       - crony-network
 
+# 仅保留网络配置，删除数据卷定义
 networks:
   crony-network:
     driver: bridge
-
-# volumes:
-#   mysql-data:
-#   etcd-data:

@@ -18,6 +18,7 @@ func Init(dsn, logMode string, maxIdleConns, maxOpenConns int) (*gorm.DB, error)
 		SkipInitializeWithVersion: false, // 根据版本自动配置
 	}
 	if db, err := gorm.Open(mysql.New(mysqlConfig), setConfig(logMode)); err != nil {
+		logger.GetLogger().Error(fmt.Sprintf("mysql connect failed: %s", err.Error()))
 		return nil, err
 	} else {
 		sqlDB, _ := db.DB()

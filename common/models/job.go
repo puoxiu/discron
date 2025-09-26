@@ -32,7 +32,7 @@ const (
 // 需要执行的 cron cmd 命令
 // 注册到 /cronsun/cmd/<node_uuid>/<group_id>/<job_id>
 type Job struct {
-	ID      int    `json:"id" gorm:"column:id"`
+	ID      int    `json:"id" gorm:"column:id;primaryKey"`
 	Name    string `json:"name" gorm:"column:name" binding:"required"`
 	GroupId int    `json:"group_id" gorm:"-" `
 	Command string `json:"command" gorm:"column:command" binding:"required"`
