@@ -13,6 +13,7 @@ import (
 	"time"
 )
 
+
 type JobRouter struct {
 }
 
@@ -25,7 +26,6 @@ func (j *JobRouter) CreateOrUpdate(c *gin.Context) {
 		resp.FailWithMessage(resp.ErrorRequestParameter, "[create_job] request parameter error", c)
 		return
 	}
-	//todo node是否存活
 	if err := req.Valid(); err != nil {
 		logger.GetLogger().Error(fmt.Sprintf("create_job check error:%s", err.Error()))
 		resp.FailWithMessage(resp.ErrorJobFormat, "[create_job] check error", c)
@@ -35,10 +35,10 @@ func (j *JobRouter) CreateOrUpdate(c *gin.Context) {
 	var err error
 	var insertId int
 	t := time.Now()
-	//todo notify
-	notifyTo, _ := json.Marshal(req.NotifyToArray)
-	req.NotifyTo = notifyTo
-	oldNodeUUID := req.RunOn
+	if len(req.NotifyToArray) > 0 {
+		notifyTo, _ := json.Marshal(req.NotifyToArray)
+		req.NotifyTo = notifyTo
+	}
 	if req.Allocation == models.AutoAllocation {
 		//自动分配
 		nodeUUID := service.DefaultJobService.AutoAllocateNode()
@@ -48,12 +48,26 @@ func (j *JobRouter) CreateOrUpdate(c *gin.Context) {
 			return
 		}
 		req.RunOn = nodeUUID
+	} else if req.Allocation == models.ManualAllocation {
+		//手动分配
+		if len(req.RunOn) == 0 {
+			resp.FailWithMessage(resp.ERROR, "[create_job] manually assigned node can't be null", c)
+			return
+		}
+		node := &models.Node{UUID: req.RunOn}
+		_ = node.FindByUUID()
+		if node.Status == models.NodeConnFail {
+			resp.FailWithMessage(resp.ERROR, "[create_job] manually assigned node inactivation", c)
+			return
+		}
 	}
-	//想更改数据库
 	if req.ID > 0 {
 		//update
+		job := &models.Job{ID: req.ID}
+		_ = job.FindById()
+		oldNodeUUID := job.RunOn
 		if oldNodeUUID != "" {
-			_, err = etcdclient.Delete(fmt.Sprintf(etcdclient.KeyEtcdJob, oldNodeUUID, req.GroupId, req.ID))
+			_, err = etcdclient.Delete(fmt.Sprintf(etcdclient.KeyEtcdJob, oldNodeUUID, req.ID))
 			if err != nil {
 				logger.GetLogger().Error(fmt.Sprintf("[update_job] delete etcd node[%s]  error:%s", oldNodeUUID, err.Error()))
 				resp.FailWithMessage(resp.ERROR, "[update_job] delete etcd node error", c)
@@ -84,55 +98,54 @@ func (j *JobRouter) CreateOrUpdate(c *gin.Context) {
 		resp.FailWithMessage(resp.ERROR, "[create_job] json marshal job error", c)
 		return
 	}
-
 	//添加至etcd
-	_, err = etcdclient.Put(fmt.Sprintf(etcdclient.KeyEtcdJob, req.RunOn, req.GroupId, req.ID), string(b))
+	_, err = etcdclient.Put(fmt.Sprintf(etcdclient.KeyEtcdJob, req.RunOn, req.ID), string(b))
 	if err != nil {
 		logger.GetLogger().Error(fmt.Sprintf("[create_job] etcd put job error:%s", err.Error()))
 		resp.FailWithMessage(resp.ERROR, "[create_job] etcd put job error", c)
 		return
 	}
 
-	resp.OkWithDetailed(req, "operation success", c)
+	resp.OkWithDetailed(req, "operate success", c)
 }
 
 func (j *JobRouter) Delete(c *gin.Context) {
-	var req request.ByID
+	var req request.ByIDS
 	if err := c.ShouldBindJSON(&req); err != nil {
 		logger.GetLogger().Error(fmt.Sprintf("[delete_job] request parameter error:%s", err.Error()))
 		resp.FailWithMessage(resp.ErrorRequestParameter, "[delete_job] request parameter error", c)
 		return
 	}
-	//先查找再删除etcd之后再删除数据库
-	job := models.Job{ID: req.ID}
-	err := job.FindById()
-	if err != nil {
-		logger.GetLogger().Error(fmt.Sprintf("[delete_job] find job by id :%d error:%s", req.ID, err.Error()))
-		resp.FailWithMessage(resp.ERROR, "[delete_job] find job by id error", c)
-		return
-	}
-	_, err = etcdclient.Delete(fmt.Sprintf(etcdclient.KeyEtcdJob, job.RunOn, job.GroupId, req.ID))
-	if err != nil {
-		logger.GetLogger().Error(fmt.Sprintf("[delete_job] etcd delete job error:%s", err.Error()))
-		resp.FailWithMessage(resp.ERROR, "[delete_job] etcd delete job error", c)
-		return
-	}
-	err = job.Delete()
-	if err != nil {
-		logger.GetLogger().Error(fmt.Sprintf("[delete_job] into db error:%s", err.Error()))
-		resp.FailWithMessage(resp.ERROR, "[delete_job] into db error", c)
-		return
+	for _, id := range req.IDs {
+		//先查找再删除etcd之后再删除数据库
+		job := models.Job{ID: id}
+		err := job.FindById()
+		if err != nil {
+			logger.GetLogger().Error(fmt.Sprintf("[delete_job] find job by id :%d error:%s", id, err.Error()))
+			continue
+		}
+		_, err = etcdclient.Delete(fmt.Sprintf(etcdclient.KeyEtcdJob, job.RunOn, id))
+		if err != nil {
+			logger.GetLogger().Error(fmt.Sprintf("[delete_job] etcd delete job error:%s", err.Error()))
+			continue
+		}
+		err = job.Delete()
+		if err != nil {
+			logger.GetLogger().Error(fmt.Sprintf("[delete_job] into db error:%s", err.Error()))
+			continue
+		}
 	}
 	resp.OkWithMessage("delete success", c)
 }
 
 func (j *JobRouter) FindById(c *gin.Context) {
 	var req request.ByID
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := c.ShouldBindQuery(&req); err != nil {
 		logger.GetLogger().Error(fmt.Sprintf("[find_job] request parameter error:%s", err.Error()))
 		resp.FailWithMessage(resp.ErrorRequestParameter, "[find_job] request parameter error", c)
 		return
 	}
+
 	//先查找再删除etcd之后再删除数据库
 	job := models.Job{ID: req.ID}
 	err := job.FindById()
@@ -157,6 +170,9 @@ func (j *JobRouter) Search(c *gin.Context) {
 		logger.GetLogger().Error(fmt.Sprintf("[search_job] search job error:%s", err.Error()))
 		resp.FailWithMessage(resp.ERROR, "[search_job] search job error", c)
 		return
+	}
+	for _, job := range jobs {
+		_ = json.Unmarshal(job.NotifyTo, &job.NotifyToArray)
 	}
 	resp.OkWithDetailed(resp.PageResult{
 		List:     jobs,

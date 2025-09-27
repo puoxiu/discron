@@ -3,14 +3,16 @@ package main
 import (
 	"fmt"
 	"os"
+	"time"
 
 	// "github.com/puoxiu/discron/common/pkg/config"
 	"github.com/puoxiu/discron/admin/internal/handler"
 	"github.com/puoxiu/discron/admin/internal/service"
+	"github.com/puoxiu/discron/common/pkg/config"
 	"github.com/puoxiu/discron/common/pkg/logger"
+	"github.com/puoxiu/discron/common/pkg/notify"
 	"github.com/puoxiu/discron/common/pkg/server"
 )
-
 
 const (
 	ServerName = "admin"
@@ -29,12 +31,17 @@ func main() {
 	if err != nil {
 		logger.GetLogger().Error(fmt.Sprintf("resolver  error:%#v", err))
 	}
-	//todo 邮件相关操作
-
-	//todo 定时清理日志
+	//初始化邮件配置
+	go notify.Serve()
+	var closeChan chan struct{}
+	period := config.GetConfigModels().System.LogCleanPeriod
+	if period > 0 {
+		closeChan = service.RunLogCleaner(time.Duration(period)*time.Minute, config.GetConfigModels().System.LogCleanExpiration)
+	}
 	err = srv.ListenAndServe()
 	if err != nil {
 		logger.GetLogger().Error(fmt.Sprintf("startup api server error:%v", err.Error()))
+		close(closeChan)
 		os.Exit(1)
 	}
 	os.Exit(0)

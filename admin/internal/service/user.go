@@ -5,7 +5,6 @@ import (
 	"github.com/puoxiu/discron/common/pkg/dbclient"
 	"github.com/puoxiu/discron/common/pkg/utils"
 	"github.com/puoxiu/discron/admin/internal/model/request"
-	"fmt"
 	"gorm.io/gorm"
 )
 
@@ -38,31 +37,26 @@ func (us *UserService) Search(s *request.ReqUserSearch) ([]models.User, int64, e
 	if len(s.UserName) > 0 {
 		db = db.Where("username like ?", s.UserName+"%")
 	}
+
 	if len(s.Email) > 0 {
 		db.Where("email = ?", s.Email)
 	}
 	if s.Role > 0 {
 		db.Where("role = ?", s.Role)
 	}
+	if s.ID > 0 {
+		db.Where("id = ?", s.ID)
+	}
 	users := make([]models.User, 2)
 	var total int64
-	err := db.Select("id", "username", "email", "role", "created", "updated").Limit(s.PageSize).Offset((s.Page - 1) * s.PageSize).Find(&users).Error
+	err := db.Count(&total).Error
 	if err != nil {
 		return nil, 0, err
 	}
-	err = db.Count(&total).Error
+	err = db.Select("id", "username", "email", "role", "created", "updated").Limit(s.PageSize).Offset((s.Page - 1) * s.PageSize).Find(&users).Error
 	if err != nil {
 		return nil, 0, err
 	}
-	return users, total, nil
-}
 
-func (us *UserService) FindByGroupId(groupId int) ([]models.User, error) {
-	var users []models.User
-	sql := fmt.Sprintf("select u.id ,u.username ,u.email, u.role  from %s ug join %s u on ug.group_id = ? and ug.user_id = u.id", models.CronixUserGroupTableName, models.CronixUserTableName)
-	err := dbclient.GetMysqlDB().Raw(sql, groupId).Scan(&users).Error
-	if err != nil {
-		return nil, err
-	}
-	return users, nil
+	return users, total, nil
 }

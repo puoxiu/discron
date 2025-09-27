@@ -1,13 +1,11 @@
 package models
 
 const (
-	CronixNodeTableName      = "cronix_node"
-	CronixGroupTableName     = "cronix_group"
-	CronixNodeGroupTableName = "cronix_node_group"
-	CronixUserGroupTableName = "cronix_user_group"
-	CronixJobTableName       = "cronix_job"
-	CronixJobLogTableName    = "cronix_job_log"
-	CronixUserTableName      = "cronix_user"
+	CronixNodeTableName   = "cronix_node"
+	CronixGroupTableName  = "cronix_group"
+	CronixJobTableName    = "cronix_job"
+	CronixJobLogTableName = "cronix_job_log"
+	CronixUserTableName   = "cronix_user"
 )
 
 type (
@@ -25,12 +23,17 @@ type (
 		LogZap       bool   `mapstructure:"log-zap" json:"logZap" yaml:"log-zap"`                     // 是否通过zap写入日志文件
 	}
 	Email struct {
-		Port     int    `mapstructure:"port" json:"port" yaml:"port"`             // 端口
-		From     string `mapstructure:"from" json:"from" yaml:"from"`             // 收件人
-		Host     string `mapstructure:"host" json:"host" yaml:"host"`             // 服务器地址
-		IsSSL    bool   `mapstructure:"is-ssl" json:"isSSL" yaml:"is-ssl"`        // 是否SSL
-		Secret   string `mapstructure:"secret" json:"secret" yaml:"secret"`       // 密钥
-		Nickname string `mapstructure:"nickname" json:"nickname" yaml:"nickname"` // 昵称
+		Port     int      `mapstructure:"port" json:"port" yaml:"port"`             // 端口
+		From     string   `mapstructure:"from" json:"from" yaml:"from"`             // 收件人
+		Host     string   `mapstructure:"host" json:"host" yaml:"host"`             // 服务器地址
+		IsSSL    bool     `mapstructure:"is-ssl" json:"isSSL" yaml:"is-ssl"`        // 是否SSL
+		Secret   string   `mapstructure:"secret" json:"secret" yaml:"secret"`       // 密钥
+		Nickname string   `mapstructure:"nickname" json:"nickname" yaml:"nickname"` // 昵称
+		To       []string `mapstructure:"to" json:"to" yaml:"to"`                   // 默认邮件发送对象
+	}
+	WebHook struct {
+		Kind string `mapstructure:"kind" json:"kind" yaml:"kind"`
+		Url  string `mapstructure:"url" json:"url" yaml:"url"`
 	}
 	Etcd struct {
 		Endpoints   []string `mapstructure:"endpoints" json:"endpoints" yaml:"endpoints"`
@@ -40,11 +43,13 @@ type (
 		ReqTimeout  int64    `mapstructure:"req-timeout" json:"req-timeout" yaml:"req-timeout"`
 	}
 	System struct {
-		Env        string `mapstructure:"env" json:"env" yaml:"env"`                            // 环境值
-		Addr       int    `mapstructure:"addr" json:"addr" yaml:"addr"`                         // 端口值
-		NodeTtl    int64  `mapstructure:"node-ttl" json:"node-ttl" yaml:"node-ttl"`             //
-		JobProcTtl int64  `mapstructure:"job-proc-ttl" json:"job-proc-ttl" yaml:"job-proc-ttl"` //
-		Version    string `mapstructure:"version" json:"version" yaml:"version"`                //
+		Env                string `mapstructure:"env" json:"env" yaml:"env"`                            // 环境值
+		Addr               int    `mapstructure:"addr" json:"addr" yaml:"addr"`                         // 端口值
+		NodeTtl            int64  `mapstructure:"node-ttl" json:"node-ttl" yaml:"node-ttl"`             //
+		JobProcTtl         int64  `mapstructure:"job-proc-ttl" json:"job-proc-ttl" yaml:"job-proc-ttl"` //
+		Version            string `mapstructure:"version" json:"version" yaml:"version"`                //
+		LogCleanPeriod     int64  `mapstructure:"log-clean-period" json:"log-clean-period" yaml:"log-clean-period"`
+		LogCleanExpiration int64  `mapstructure:"log-clean-expiration" json:"log-clean-expiration" yaml:"log-clean-expiration"`
 	}
 	Log struct {
 		Level         string `mapstructure:"level" json:"level" yaml:"level"`                           // 级别
@@ -57,11 +62,12 @@ type (
 		LogInConsole  bool   `mapstructure:"log-in-console" json:"logInConsole" yaml:"log-in-console"`  // 输出控制台
 	}
 	Config struct {
-		Log    Log    `mapstructure:"log" json:"log" yaml:"log"`
-		Email  Email  `mapstructure:"email" json:"email" yaml:"email"`
-		System System `mapstructure:"system" json:"system" yaml:"system"`
-		Mysql  Mysql  `mapstructure:"mysql" json:"mysql" yaml:"mysql"`
-		Etcd   Etcd   `mapstructure:"etcd" json:"etcd" yaml:"etcd"`
+		WebHook WebHook `mapstructure:"webhook" json:"webhook" yaml:"webhook"`
+		Log     Log     `mapstructure:"log" json:"log" yaml:"log"`
+		Email   Email   `mapstructure:"email" json:"email" yaml:"email"`
+		System  System  `mapstructure:"system" json:"system" yaml:"system"`
+		Mysql   Mysql   `mapstructure:"mysql" json:"mysql" yaml:"mysql"`
+		Etcd    Etcd    `mapstructure:"etcd" json:"etcd" yaml:"etcd"`
 	}
 )
 

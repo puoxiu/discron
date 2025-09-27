@@ -2,11 +2,13 @@ package main
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/puoxiu/discron/common/pkg/logger"
+	"github.com/puoxiu/discron/common/pkg/notify"
 	"github.com/puoxiu/discron/common/pkg/server"
 	"github.com/puoxiu/discron/common/pkg/utils/event"
 	"github.com/puoxiu/discron/node/internal/service"
-	"os"
 )
 
 const ServerName = "node"
@@ -31,6 +33,9 @@ func main() {
 		logger.GetLogger().Error(fmt.Sprintf("node run error:%s", err.Error()))
 		os.Exit(1)
 	}
+
+	// mail
+	go notify.Serve()
 
 	logger.GetLogger().Info(fmt.Sprintf("crony node %s service started, Ctrl+C or send kill sign to exit", nodeServer.String()))
 	// 注册退出事件

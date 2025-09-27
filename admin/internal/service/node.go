@@ -2,15 +2,20 @@ package service
 
 import (
 	"context"
-	"encoding/json"	
+	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
+	"time"
+
 	"github.com/puoxiu/discron/admin/internal/model/request"
 	"github.com/puoxiu/discron/common/models"
+	"github.com/puoxiu/discron/common/pkg/config"
 	"github.com/puoxiu/discron/common/pkg/dbclient"
 	"github.com/puoxiu/discron/common/pkg/etcdclient"
 	"github.com/puoxiu/discron/common/pkg/logger"
+	"github.com/puoxiu/discron/common/pkg/notify"
+	"github.com/puoxiu/discron/common/pkg/utils"
 	"go.etcd.io/etcd/api/v3/mvccpb"
 	"go.etcd.io/etcd/client/v3"
 )
@@ -52,29 +57,42 @@ func (n *NodeWatcherService) watcher() {
 			case mvccpb.DELETE:
 				uuid := n.GetUUID(string(ev.Kv.Key))
 				logger.GetLogger().Warn(fmt.Sprintf("Cronix node[%s] DELETE event detected", uuid))
-				//先删除在故障转移
+				node := &models.Node{UUID: uuid}
+				err := node.FindByUUID()
+				if err != nil {
+					logger.GetLogger().Error(fmt.Sprintf("Cronix node[%s] find by uuid  error:%s", uuid, err.Error()))
+					return
+				}
+				// 先删除再故障转移
 				n.DelNodeList(n.GetUUID(string(ev.Kv.Key)))
 				success, fail, err := n.FailOver(uuid)
 				if err != nil {
 					logger.GetLogger().Error(fmt.Sprintf("Cronix node[%s] fail over error:%s", uuid, err.Error()))
+					return
 				}
-				logger.GetLogger().Info(fmt.Sprintf("[Cronix Warning]Cronix node[%s] fail over success count:%d jobID are :%s ,fail count:%d jobID are :%s ", uuid, success.Count(), success.String(), fail.Count(), fail.String()))
-				//todo notice
-				// 故障转移
-				/*if node.Alived {
-					n.Send(&Message{
-						Subject: fmt.Sprintf("[Cronsun Warning] Node[%s] break away cluster at %s",
-							node.Hostname, time.Now().Format(time.RFC3339)),
-						Body: fmt.Sprintf("Cronsun Node breaked away cluster, this might happened when node crash or network problems.\nUUID: %s\nHostname: %s\nIP: %s\n", id, node.Hostname, node.IP),
-						To:   conf.Config.Mail.To,
-					})
-				}*/
+				//如果故障转移全部成功则在数据库里删除节点
+				if fail.Count() == 0 {
+					err = node.Delete()
+					if err != nil {
+						logger.GetLogger().Error(fmt.Sprintf("Cronix node[%s] delete by uuid  error:%s", uuid, err.Error()))
+					}
+				}
+				//节点失活信息默认使用邮件
+				msg := &notify.Message{
+					Type:      notify.NotifyTypeMail,
+					IP:        fmt.Sprintf("%s:%s", node.IP, node.PID),
+					Subject:   "节点失活报警",
+					Body:      fmt.Sprintf("[Cronix Warning]Cronix node[%s] in the cluster has failed,，fail over success count:%d jobID are :%s ,fail count:%d jobID are :%s ", uuid, success.Count(), success.String(), fail.Count(), fail.String()),
+					To:        config.GetConfigModels().Email.To,
+					OccurTime: time.Now().Format(utils.TimeFormatSecond),
+				}
+
+				go notify.Send(msg)
 			}
 		}
 	}
 }
 
-//todo 是否需要
 func (n *NodeWatcherService) extractNodes(resp *clientv3.GetResponse) []string {
 	nodes := make([]string, 0)
 	if resp == nil || resp.Kvs == nil {
@@ -93,14 +111,14 @@ func (n *NodeWatcherService) SetNodeList(key, val string) {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 	n.nodeList[key] = val
-	logger.GetLogger().Debug(fmt.Sprintf("set data key : %s val:%s", key, val))
+	logger.GetLogger().Debug(fmt.Sprintf("discover node[%s],pid[%s]", key, val))
 }
 
 func (n *NodeWatcherService) DelNodeList(key string) {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 	delete(n.nodeList, key)
-	logger.GetLogger().Debug(fmt.Sprintf("del data key: %s", key))
+	logger.GetLogger().Debug(fmt.Sprintf("delelte node[%s]", key))
 }
 
 func (n *NodeWatcherService) List2Array() []string {
@@ -143,34 +161,24 @@ func (n *NodeWatcherService) Search(s *request.ReqNodeSearch) ([]models.Node, in
 	}
 	nodes := make([]models.Node, 2)
 	var total int64
-	err := db.Limit(s.PageSize).Offset((s.Page - 1) * s.PageSize).Find(&nodes).Error
+	err := db.Count(&total).Error
 	if err != nil {
 		return nil, 0, err
 	}
-	err = db.Count(&total).Error
+	err = db.Limit(s.PageSize).Offset((s.Page - 1) * s.PageSize).Order("up desc").Find(&nodes).Error
 	if err != nil {
 		return nil, 0, err
 	}
+
 	return nodes, total, nil
 }
 
-//todo 获取某节点的job数量
 func (n *NodeWatcherService) GetJobCount(nodeUUID string) (int, error) {
-	resps, err := etcdclient.Get(fmt.Sprintf(etcdclient.KeyEtcdJobProfile, nodeUUID), clientv3.WithPrefix())
+	resps, err := etcdclient.Get(fmt.Sprintf(etcdclient.KeyEtcdJobProfile, nodeUUID), clientv3.WithPrefix(), clientv3.WithCountOnly())
 	if err != nil {
 		return 0, err
 	}
-	return len(resps.Kvs), nil
-}
-
-func (n *NodeWatcherService) FindByGroupId(groupId int) ([]models.Node, error) {
-	var nodes []models.Node
-	sql := fmt.Sprintf("select n.* from %s ng join %s n on ng.group_id = ? and ng.node_uuid = n.uuid", models.CronixNodeGroupTableName, models.CronixNodeTableName)
-	err := dbclient.GetMysqlDB().Raw(sql, groupId).Scan(&nodes).Error
-	if err != nil {
-		return nil, err
-	}
-	return nodes, nil
+	return int(resps.Count), nil
 }
 
 type Result []int
@@ -239,14 +247,14 @@ func (n *NodeWatcherService) FailOver(nodeUUID string) (success Result, fail Res
 			continue
 		}
 
-		_, err = etcdclient.Put(fmt.Sprintf(etcdclient.KeyEtcdJob, job.RunOn, job.GroupId, job.ID), string(b))
+		_, err = etcdclient.Put(fmt.Sprintf(etcdclient.KeyEtcdJob, job.RunOn, job.ID), string(b))
 		if err != nil {
 			logger.GetLogger().Error(fmt.Sprintf("node[%s] job[%d] fail over etcd put job error:%s", nodeUUID, job.ID, err.Error()))
 			fail = append(fail, job.ID)
 			continue
 		}
 		//如果转移成功则删除key值
-		_, err = etcdclient.Delete(fmt.Sprintf(etcdclient.KeyEtcdJob, oldUUID, job.GroupId, job.ID))
+		_, err = etcdclient.Delete(fmt.Sprintf(etcdclient.KeyEtcdJob, oldUUID, job.ID))
 		if err != nil {
 			logger.GetLogger().Error(fmt.Sprintf("node[%s] job[%d] fail over etcd delete job error:%s", nodeUUID, job.ID, err.Error()))
 			fail = append(fail, job.ID)
@@ -254,7 +262,6 @@ func (n *NodeWatcherService) FailOver(nodeUUID string) (success Result, fail Res
 		}
 		success = append(success, job.ID)
 	}
-	//todo 自动分配成功的有几个，失败的有几个
 	return
 }
 
@@ -275,8 +282,21 @@ func (n *NodeWatcherService) GetJobs(nodeUUID string) (jobs []models.Job, err er
 			logger.GetLogger().Warn(fmt.Sprintf("job[%s] umarshal err: %s", string(j.Key), err.Error()))
 			continue
 		}
-		fmt.Println("job:", job)
 		jobs = append(jobs, job)
 	}
 	return
+}
+
+//获取某个node的数量
+func (n *NodeWatcherService) GetNodeCount(status int) (int64, error) {
+	db := dbclient.GetMysqlDB().Table(models.CronixNodeTableName)
+	if status > 0 {
+		db = db.Where("status = ?", status)
+	}
+	var total int64
+	err := db.Count(&total).Error
+	if err != nil {
+		return 0, err
+	}
+	return total, nil
 }

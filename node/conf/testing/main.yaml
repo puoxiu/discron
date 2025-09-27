@@ -29,8 +29,8 @@ email:
   from: "896178977@qq.com"
   host: "smtp.qq.com"
   is-ssl: true
-  secret: "otjkvfgiguswciga"
-  nickname: "test"
+  secret: "hsscatqcfvnjbfje"
+  nickname: "cronix分布式任务平台"
 
 log:
   level: "debug"

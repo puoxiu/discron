@@ -1,38 +1,25 @@
 package etcdclient
 
-/*
-   "node": "/cronix/node/",
-   "proc": "/cronix/proc/",
-   "cmd": "/cronix/cmd/",
-   "once": "/cronix/once/",
-   "lock": "/cronix/lock/",
-   "group": "/cronix/group/",
-   "noticer": "/cronix/noticer/"
-*/
 const (
-	keyEtcdProfile = "/cronix/"
+	keyEtcdProfile = "/Cronix/"
 
 	//node节点
-	//key /cronix/node/<node_uuid>
+	//key /Cronix/node/<node_uuid>
 	KeyEtcdNodeProfile = keyEtcdProfile + "node/"
 	KeyEtcdNode        = KeyEtcdNodeProfile + "%s"
 
-	//key  /cronix/proc/<node_uuid>/<group_id>/<job_id>/<pid>
-	KeyEtcdProcProfile = keyEtcdProfile + "proc/%s/"
-	KeyEtcdProc        = KeyEtcdProcProfile + "%d/%d/%d"
+	//key  /Cronix/proc/<node_uuid>/<job_id>/<pid>
+	KeyEtcdProcProfile = keyEtcdProfile + "proc/"
+	KeyEtcdProc        = KeyEtcdProcProfile + "%s/%d/%d"
 
-	//key /cronix/job/<node_uuid>/<group_id>/<job_id>
+	//key /Cronix/job/<node_uuid>/<job_id>
 	KeyEtcdJobProfile = keyEtcdProfile + "job/%s/"
-	KeyEtcdJob        = KeyEtcdJobProfile + "%d/%d"
+	KeyEtcdJob        = KeyEtcdJobProfile + "%d"
 
-	// key /cronix/once/group/<jobID>
+	// key /Cronix/once/<jobID>
 	KeyEtcdOnceProfile = keyEtcdProfile + "once/"
-	KeyEtcdOnce        = KeyEtcdOnceProfile + "%d/%d"
+	KeyEtcdOnce        = KeyEtcdOnceProfile + "%d"
 
-	// key /cronix/group/<group_id>
-	KeyEtcdGroupProfile = keyEtcdProfile + "group/"
-	KeyEtcdGroup        = KeyEtcdGroupProfile + "%d"
-
-	KeyEtcdLock    = keyEtcdProfile + "lock/"
-	KeyEtcdNoticer = keyEtcdProfile + "noticer/"
+	KeyEtcdLockProfile = keyEtcdProfile + "lock/"
+	KeyEtcdLock        = KeyEtcdLockProfile + "%s"
 )

@@ -6,7 +6,6 @@ import (
 	"github.com/puoxiu/discron/admin/internal/model/request"
 	"github.com/puoxiu/discron/admin/internal/model/resp"
 	"github.com/puoxiu/discron/admin/internal/service"
-	"github.com/puoxiu/discron/common/models"
 	"github.com/puoxiu/discron/common/pkg/logger"
 )
 
@@ -28,59 +27,19 @@ func (n *NodeRouter) Search(c *gin.Context) {
 		resp.FailWithMessage(resp.ERROR, "[search_node] search node  error", c)
 		return
 	}
+	var resultNodes []resp.RspNodeSearch
+	for _, node := range nodes {
+		resultNode := resp.RspNodeSearch{
+			Node: node,
+		}
+		resultNode.JobCount, _ = service.DefaultNodeWatcher.GetJobCount(node.UUID)
+		resultNodes = append(resultNodes, resultNode)
+	}
+
 	resp.OkWithDetailed(resp.PageResult{
-		List:     nodes,
+		List:     resultNodes,
 		Total:    total,
 		Page:     req.Page,
 		PageSize: req.PageSize,
 	}, "search success", c)
-}
-
-func (n *NodeRouter) JoinGroup(c *gin.Context) {
-	var req models.NodeGroup
-	if err := c.ShouldBindJSON(&req); err != nil {
-		logger.GetLogger().Error(fmt.Sprintf("[node_join_group] request parameter error:%s", err.Error()))
-		resp.FailWithMessage(resp.ErrorRequestParameter, "[node_join_group] request parameter error", c)
-		return
-	}
-	_, err := req.Insert()
-	if err != nil {
-		logger.GetLogger().Error(fmt.Sprintf("[node_join_group] db error:%v", err))
-		resp.FailWithMessage(resp.ERROR, "[node_join_group] db error", c)
-		return
-	}
-	resp.OkWithMessage("join success", c)
-}
-
-func (n *NodeRouter) KickGroup(c *gin.Context) {
-	var req models.NodeGroup
-	if err := c.ShouldBindJSON(&req); err != nil {
-		logger.GetLogger().Error(fmt.Sprintf("[node_kick_group] request parameter error:%s", err.Error()))
-		resp.FailWithMessage(resp.ErrorRequestParameter, "[node_kick_group] request parameter error", c)
-		return
-	}
-	err := req.Delete()
-	if err != nil {
-		logger.GetLogger().Error(fmt.Sprintf("[node_kick_group] db error:%v", err))
-		resp.FailWithMessage(resp.ERROR, "[node_kick_group] db error", c)
-		return
-	}
-	resp.OkWithMessage("kick success", c)
-}
-
-
-func (n *NodeRouter) GetByGroupId(c *gin.Context) {
-	var req request.ByID
-	if err := c.ShouldBindJSON(&req); err != nil {
-		logger.GetLogger().Error(fmt.Sprintf("[node_get_by_group] request parameter error:%s", err.Error()))
-		resp.FailWithMessage(resp.ErrorRequestParameter, "[node_get_by_group] request parameter error", c)
-		return
-	}
-	nodes, err := service.DefaultNodeWatcher.FindByGroupId(req.ID)
-	if err != nil {
-		logger.GetLogger().Error(fmt.Sprintf("[node_get_by_group] db error:%v", err))
-		resp.FailWithMessage(resp.ERROR, "[node_get_by_group] db error", c)
-		return
-	}
-	resp.OkWithDetailed(nodes, "get success", c)
 }

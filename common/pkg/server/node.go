@@ -2,14 +2,16 @@ package server
 
 import (
 	"fmt"
+	"net/http"
+	"os"
+
 	"github.com/jessevdk/go-flags"
 	"github.com/puoxiu/discron/common/models"
 	"github.com/puoxiu/discron/common/pkg/config"
 	"github.com/puoxiu/discron/common/pkg/dbclient"
 	"github.com/puoxiu/discron/common/pkg/etcdclient"
 	"github.com/puoxiu/discron/common/pkg/logger"
-	"net/http"
-	"os"
+	"github.com/puoxiu/discron/common/pkg/notify"
 )
 
 var (
@@ -66,6 +68,16 @@ func InitNodeServer(serverName string, inits ...func()) (*models.Config, error) 
 	mysqlConfig := defaultConfig.Mysql
 	etcdConfig := defaultConfig.Etcd
 	logger.Init(serverName, logConfig.Level, logConfig.Format, logConfig.Prefix, logConfig.Director, logConfig.ShowLine, logConfig.EncodeLevel, logConfig.StacktraceKey, logConfig.LogInConsole)
+	notify.Init(&notify.Mail{
+		Port:     defaultConfig.Email.Port,
+		From:     defaultConfig.Email.From,
+		Host:     defaultConfig.Email.Host,
+		Secret:   defaultConfig.Email.Secret,
+		Nickname: defaultConfig.Email.Nickname,
+	}, &notify.WebHook{
+		Url:  defaultConfig.WebHook.Url,
+		Kind: defaultConfig.WebHook.Kind,
+	})
 	//初始化数据层服务
 	_, err = dbclient.Init(mysqlConfig.Dsn(), mysqlConfig.LogMode, mysqlConfig.MaxIdleConns, mysqlConfig.MaxOpenConns)
 	if err != nil {
@@ -87,4 +99,3 @@ func InitNodeServer(serverName string, inits ...func()) (*models.Config, error) 
 	}
 	return defaultConfig, nil
 }
-

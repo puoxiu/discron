@@ -3,12 +3,6 @@ package server
 import (
 	"context"
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"github.com/jessevdk/go-flags"
-	"github.com/puoxiu/discron/common/pkg/config"
-	"github.com/puoxiu/discron/common/pkg/dbclient"
-	"github.com/puoxiu/discron/common/pkg/etcdclient"
-	"github.com/puoxiu/discron/common/pkg/logger"
 	"io"
 	"net"
 	"net/http"
@@ -19,6 +13,14 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/jessevdk/go-flags"
+	"github.com/puoxiu/discron/common/pkg/config"
+	"github.com/puoxiu/discron/common/pkg/dbclient"
+	"github.com/puoxiu/discron/common/pkg/etcdclient"
+	"github.com/puoxiu/discron/common/pkg/logger"
+	"github.com/puoxiu/discron/common/pkg/notify"
 )
 
 const (
@@ -215,7 +217,16 @@ func NewApiServer(serverName string, inits ...func()) (*ApiServer, error) {
 	etcdConfig := defaultConfig.Etcd
 
 	logger.Init(serverName, logConfig.Level, logConfig.Format, logConfig.Prefix, logConfig.Director, logConfig.ShowLine, logConfig.EncodeLevel, logConfig.StacktraceKey, logConfig.LogInConsole)
-
+	notify.Init(&notify.Mail{
+		Port:     defaultConfig.Email.Port,
+		From:     defaultConfig.Email.From,
+		Host:     defaultConfig.Email.Host,
+		Secret:   defaultConfig.Email.Secret,
+		Nickname: defaultConfig.Email.Nickname,
+	}, &notify.WebHook{
+		Url:  defaultConfig.WebHook.Url,
+		Kind: defaultConfig.WebHook.Kind,
+	})
 	//初始化数据层服务
 	_, err = dbclient.Init(mysqlConfig.Dsn(), mysqlConfig.LogMode, mysqlConfig.MaxIdleConns, mysqlConfig.MaxOpenConns)
 	if err != nil {
