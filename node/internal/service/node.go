@@ -1,19 +1,21 @@
 package service
 
 import (
-	"time"
 	"fmt"
+	"os"
+	"strconv"
+	"syscall"
+	"time"
+
 	"github.com/jakecoffman/cron"
 	"github.com/ouqiang/goutil"
 	"github.com/puoxiu/discron/common/models"
 	"github.com/puoxiu/discron/common/pkg/config"
+	"github.com/puoxiu/discron/common/pkg/dbclient"
 	"github.com/puoxiu/discron/common/pkg/etcdclient"
 	"github.com/puoxiu/discron/common/pkg/logger"
 	"github.com/puoxiu/discron/common/pkg/utils"
 	"github.com/puoxiu/discron/node/internal/handler"
-	"os"
-	"strconv"
-	"syscall"
 )
 
 // Node 执行 cron 命令服务的结构体
@@ -132,7 +134,15 @@ func (srv *NodeServer) Down() {
 	srv.DownTime = time.Now().Unix()
 	err := srv.Node.Update()
 	if err != nil {
-		logger.GetLogger().Warn(fmt.Sprintf("failed to update  node[%s] down  error:%s", srv.UUID, err.Error()))
+		logger.GetLogger().Error(fmt.Sprintf("failed to update  node[%s] down  error:%s", srv.UUID, err.Error()))
+	}
+	err = dbclient.GetMysqlDB().Table(models.CronixJobTableName).Select("status", "run_on").Where("run_on = ? ", srv.UUID).Updates(models.Job{
+		Status: models.JobStatusNotAssigned,
+		RunOn:  "",
+	}).Error
+
+	if err != nil {
+		logger.GetLogger().Error(fmt.Sprintf("failed to update job on node[%s] down  error:%s", srv.UUID, err.Error()))
 	}
 }
 
@@ -181,7 +191,7 @@ func (srv *NodeServer) loadJobs() (err error) {
 	srv.jobs = jobs
 
 	for _, j := range jobs {
-		j.InitNodeInfo(srv.UUID, srv.Hostname, srv.IP)
+		j.InitNodeInfo(models.JobStatusAssigned, srv.UUID, srv.Hostname, srv.IP)
 		srv.addJob(j)
 	}
 

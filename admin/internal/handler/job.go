@@ -3,14 +3,16 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"github.com/puoxiu/discron/admin/internal/model/request"
 	"github.com/puoxiu/discron/admin/internal/model/resp"
 	"github.com/puoxiu/discron/admin/internal/service"
 	"github.com/puoxiu/discron/common/models"
+	"github.com/puoxiu/discron/common/pkg/config"
 	"github.com/puoxiu/discron/common/pkg/etcdclient"
 	"github.com/puoxiu/discron/common/pkg/logger"
-	"time"
 )
 
 
@@ -31,7 +33,6 @@ func (j *JobRouter) CreateOrUpdate(c *gin.Context) {
 		resp.FailWithMessage(resp.ErrorJobFormat, "[create_job] check error", c)
 		return
 	}
-	logger.GetLogger().Debug(fmt.Sprintf("create job req:%#v", req))
 	var err error
 	var insertId int
 	t := time.Now()
@@ -39,7 +40,12 @@ func (j *JobRouter) CreateOrUpdate(c *gin.Context) {
 		notifyTo, _ := json.Marshal(req.NotifyToArray)
 		req.NotifyTo = notifyTo
 	}
+
 	if req.Allocation == models.AutoAllocation {
+		if !config.GetConfigModels().System.CmdAutoAllocation && req.Type == models.JobTypeCmd {
+			resp.FailWithMessage(resp.ERROR, "[create_job] The shell command is not supported to automatically assign nodes by default.", c)
+			return
+		}
 		//自动分配
 		nodeUUID := service.DefaultJobService.AutoAllocateNode()
 		if nodeUUID == "" {
@@ -116,7 +122,7 @@ func (j *JobRouter) Delete(c *gin.Context) {
 		resp.FailWithMessage(resp.ErrorRequestParameter, "[delete_job] request parameter error", c)
 		return
 	}
-	for _, id := range req.IDs {
+	for _, id := range req.IDS {
 		//先查找再删除etcd之后再删除数据库
 		job := models.Job{ID: id}
 		err := job.FindById()
