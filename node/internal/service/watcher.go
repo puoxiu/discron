@@ -2,11 +2,15 @@ package service
 
 import (
 	"encoding/json"
+	"fmt"
+	"strings"
 	"go.etcd.io/etcd/api/v3/mvccpb"
 	"github.com/puoxiu/discron/common/models"
 	"github.com/puoxiu/discron/common/pkg/logger"
 	"github.com/puoxiu/discron/node/internal/handler"
-	"fmt"
+
+	"github.com/puoxiu/discron/common/pkg/utils"
+	"github.com/puoxiu/discron/common/pkg/etcdclient"
 )
 
 func (srv *NodeServer) watchJobs() {
@@ -70,6 +74,51 @@ func (srv *NodeServer) watchKilledProc() {
 			}
 		}
 	}
+}
+
+func (srv *NodeServer) watchSystemInfo() {
+	rch := handler.WatchSystem(srv.UUID)
+	for wresp := range rch {
+		for _, ev := range wresp.Events {
+			switch {
+			//监控是否被创建
+			case ev.IsCreate() || ev.IsModify():
+				key := string(ev.Kv.Key)
+				logger.GetLogger().Debug(fmt.Sprintf("create:%s", string(ev.Kv.Value)))
+				if string(ev.Kv.Value) != models.NodeSystemInfoSwitch || srv.Node.UUID != getUUID(key) {
+					logger.GetLogger().Error(fmt.Sprintf("get system info from node[%s] ,switch is not alive ", srv.UUID))
+					continue
+				}
+				s, err := utils.GetServerInfo()
+				if err != nil {
+					logger.GetLogger().Error(fmt.Sprintf("get system info from node[%s] error: %s", srv.UUID, err.Error()))
+					//是否需要删除
+					continue
+				}
+				b, err := json.Marshal(s)
+				if err != nil {
+					logger.GetLogger().Error(fmt.Sprintf("get system info from node[%s] json marshal error: %s", srv.UUID, err.Error()))
+					continue
+				}
+				//修改值
+				_, err = etcdclient.Put(fmt.Sprintf(etcdclient.KeyEtcdSystemGet, getUUID(key)), string(b))
+				if err != nil {
+					logger.GetLogger().Error(fmt.Sprintf("get system info from node[%s] etcd put error: %s", srv.UUID, err.Error()))
+					continue
+				}
+
+			}
+		}
+	}
+}
+
+func getUUID(key string) string {
+	// /crony/node/<node_uuid>
+	index := strings.LastIndex(key, "/")
+	if index == -1 {
+		return ""
+	}
+	return key[index+1:]
 }
 
 func (srv *NodeServer) watchOnce() {
