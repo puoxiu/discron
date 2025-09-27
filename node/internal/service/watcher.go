@@ -12,29 +12,28 @@ import (
 	"github.com/puoxiu/discron/common/pkg/utils"
 	"github.com/puoxiu/discron/common/pkg/etcdclient"
 )
-
 func (srv *NodeServer) watchJobs() {
 	rch := handler.WatchJobs(srv.UUID)
 	for wresp := range rch {
 		for _, ev := range wresp.Events {
 			switch {
 			case ev.IsCreate():
-				job, err := handler.GetJobFromKv(ev.Kv.Key, ev.Kv.Value)
-				if err != nil {
-					logger.GetLogger().Warn(fmt.Sprintf("watch job err: %s, kv: %s", err.Error(), ev.Kv.String()))
+				var job handler.Job
+				if err := json.Unmarshal(ev.Kv.Value, &job); err != nil {
+					err = fmt.Errorf("watch job[%s] create json umarshal err: %s", string(ev.Kv.Key), err.Error())
 					continue
 				}
-				srv.jobs[job.ID] = job
+				srv.jobs[job.ID] = &job
 				job.InitNodeInfo(models.JobStatusAssigned, srv.UUID, srv.Hostname, srv.IP)
-				srv.addJob(job)
+				srv.addJob(&job)
 			case ev.IsModify():
-				job, err := handler.GetJobFromKv(ev.Kv.Key, ev.Kv.Value)
-				if err != nil {
-					logger.GetLogger().Warn(fmt.Sprintf("watch job err: %s, kv: %s", err.Error(), ev.Kv.String()))
+				var job handler.Job
+				if err := json.Unmarshal(ev.Kv.Value, &job); err != nil {
+					err = fmt.Errorf("watch job[%s] modify json umarshal err: %s", string(ev.Kv.Key), err.Error())
 					continue
 				}
 				job.InitNodeInfo(models.JobStatusAssigned, srv.UUID, srv.Hostname, srv.IP)
-				srv.modifyJob(job)
+				srv.modifyJob(&job)
 			case ev.Type == mvccpb.DELETE:
 				srv.deleteJob(handler.GetJobIDFromKey(string(ev.Kv.Key)))
 			default:
@@ -84,7 +83,6 @@ func (srv *NodeServer) watchSystemInfo() {
 			//监控是否被创建
 			case ev.IsCreate() || ev.IsModify():
 				key := string(ev.Kv.Key)
-				logger.GetLogger().Debug(fmt.Sprintf("create:%s", string(ev.Kv.Value)))
 				if string(ev.Kv.Value) != models.NodeSystemInfoSwitch || srv.Node.UUID != getUUID(key) {
 					logger.GetLogger().Error(fmt.Sprintf("get system info from node[%s] ,switch is not alive ", srv.UUID))
 					continue

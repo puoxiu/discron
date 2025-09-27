@@ -9,7 +9,7 @@ var feiShuTemplateCard = `{
     "header": {
       "title": {
         "tag": "plain_text",
-        "content": "报警 - Crony定时任务平台" 
+        "content": "报警 - Cronix定时任务平台报警" 
       },
       "template": "red" 
     },

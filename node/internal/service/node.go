@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"syscall"
 	"time"
+	"encoding/json"
 
 	"github.com/jakecoffman/cron"
 	"github.com/ouqiang/goutil"
@@ -17,6 +18,7 @@ import (
 	"github.com/puoxiu/discron/common/pkg/utils"
 	"github.com/puoxiu/discron/node/internal/handler"
 )
+
 
 // Node 执行 cron 命令服务的结构体
 type NodeServer struct {
@@ -105,8 +107,12 @@ func (srv *NodeServer) Register() error {
 	if pid != -1 {
 		return fmt.Errorf("node[%s] with pid[%d] exist", srv.UUID, pid)
 	}
+	b, err := json.Marshal(&srv.Node)
+	if err != nil {
+		return fmt.Errorf("node[%s] with pid[%d] json error%s", srv.UUID, pid, err.Error())
+	}
 	//creates a new lease
-	if err := srv.ServerReg.Register(fmt.Sprintf(etcdclient.KeyEtcdNode, srv.UUID), srv.PID); err != nil {
+	if err := srv.ServerReg.Register(fmt.Sprintf(etcdclient.KeyEtcdNode, srv.UUID), string(b)); err != nil {
 		return err
 	}
 	return nil
@@ -236,12 +242,10 @@ func (srv *NodeServer) modifyJob(j *handler.Job) {
 }
 
 func (srv *NodeServer) deleteJob(jobId int) {
-	if job, ok := srv.jobs[jobId]; ok {
+	if _, ok := srv.jobs[jobId]; ok {
 		//存在则删除并且移除任务
 		srv.Cron.RemoveJob(srv.jobCronName(jobId))
 		delete(srv.jobs, jobId)
-		//删除数据库
-		_ = job.Delete()
 		return
 	}
 	return
