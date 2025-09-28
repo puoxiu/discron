@@ -52,14 +52,6 @@ func (p *JobProc) Key() string {
 	return fmt.Sprintf(etcdclient.KeyEtcdProc, p.NodeUUID, p.JobID, p.ID)
 }
 
-func (p *JobProc) Val() (string, error) {
-	b, err := json.Marshal(&p.JobProcVal)
-	if err != nil {
-		return "", err
-	}
-	return string(b), nil
-}
-
 func (p *JobProc) del() error {
 	if atomic.LoadInt32(&p.HasPut) != 1 {
 		return nil
@@ -73,7 +65,7 @@ func (p *JobProc) Stop() {
 	if p == nil {
 		return
 	}
-	if !atomic.CompareAndSwapInt32(&p.Runnig, 1, 0) {
+	if !atomic.CompareAndSwapInt32(&p.Running, 1, 0) {
 		return
 	}
 	p.Wg.Wait()
@@ -92,12 +84,11 @@ func (p *JobProc) Start() error {
 		return nil
 	}
 
-	if !atomic.CompareAndSwapInt32(&p.Runnig, 0, 1) {
+	if !atomic.CompareAndSwapInt32(&p.Running, 0, 1) {
 		return nil
 	}
 
 	p.Wg.Add(1)
-	//creates a new lease
 	val, err := json.Marshal(p.JobProcVal)
 	if err != nil {
 		return err

@@ -11,7 +11,8 @@ const (
 	//key  /Cronix/proc/<node_uuid>/<job_id>/<pid>
 	KeyEtcdProcProfile     = keyEtcdProfile + "proc/"
 	KeyEtcdNodeProcProfile = KeyEtcdProcProfile + "%s/"
-	KeyEtcdProc            = KeyEtcdNodeProcProfile + "%d/%d"
+	KeyEtcdJobProcProfile  = KeyEtcdNodeProcProfile + "%d/"
+	KeyEtcdProc            = KeyEtcdJobProcProfile + "%d"
 
 	//key /Cronix/job/<node_uuid>/<job_id>
 	KeyEtcdJobProfile = keyEtcdProfile + "job/%s/"

@@ -18,7 +18,6 @@ import (
 	"github.com/puoxiu/discron/common/pkg/utils/errors"
 	"go.etcd.io/etcd/client/v3"
 )
-
 type Job struct {
 	*models.Job
 }
@@ -26,14 +25,6 @@ type Jobs map[int]*Job
 
 func JobKey(nodeUUID string, jobId int) string {
 	return fmt.Sprintf(etcdclient.KeyEtcdJob, nodeUUID, jobId)
-}
-
-func (j *Job) String() string {
-	data, err := json.Marshal(j)
-	if err != nil {
-		return err.Error()
-	}
-	return string(data)
 }
 
 func GetJobAndRev(nodeUUID string, jobId int) (job *Job, rev int64, err error) {
@@ -214,7 +205,7 @@ func CreateJob(j *Job) cron.FuncJob {
 			Type:      j.NotifyType,
 			IP:        fmt.Sprintf("%s:%s", node.IP, node.PID),
 			Subject:   fmt.Sprintf("任务[%s]执行失败", j.Name),
-			Body:      fmt.Sprintf("job[%d] run on node[%s] execute failed ,retry %d times ,output :%s", j.ID, j.RunOn, j.RetryTimes, output),
+			Body:      strings.Replace(fmt.Sprintf("job[%d] run on node[%s] execute failed ,retry %d times ,output :%s", j.ID, j.RunOn, j.RetryTimes, output), "\n", "", -1),
 			To:        to,
 			OccurTime: time.Now().Format(utils.TimeFormatSecond),
 		}

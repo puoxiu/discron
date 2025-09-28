@@ -3,7 +3,9 @@ package models
 import (
 	"sync"
 	"time"
+	"encoding/json"
 )
+
 
 type JobProcVal struct {
 	Time   time.Time `json:"time"`   // 开始执行时间
@@ -18,7 +20,15 @@ type JobProc struct {
 	// parse from value
 	JobProcVal
 
-	Runnig int32
-	HasPut int32
-	Wg     sync.WaitGroup
+	Running int32
+	HasPut  int32
+	Wg      sync.WaitGroup
+}
+
+func (p *JobProc) Val() (string, error) {
+	b, err := json.Marshal(&p.JobProcVal)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
 }
