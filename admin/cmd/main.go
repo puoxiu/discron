@@ -9,6 +9,7 @@ import (
 	"github.com/puoxiu/discron/admin/internal/handler"
 	"github.com/puoxiu/discron/admin/internal/service"
 	"github.com/puoxiu/discron/common/pkg/config"
+	"github.com/puoxiu/discron/common/pkg/dbclient"
 	"github.com/puoxiu/discron/common/pkg/logger"
 	"github.com/puoxiu/discron/common/pkg/notify"
 	"github.com/puoxiu/discron/common/pkg/server"
@@ -31,6 +32,13 @@ func main() {
 	if err != nil {
 		logger.GetLogger().Error(fmt.Sprintf("resolver  error:%#v", err))
 	}
+
+	// 初始化数据库表
+	err = service.RegisterTables(dbclient.GetMysqlDB())
+	if err != nil {
+		logger.GetLogger().Error(fmt.Sprintf("init db table error:%#v", err))
+	}
+
 	//初始化邮件配置
 	go notify.Serve()
 	var closeChan chan struct{}

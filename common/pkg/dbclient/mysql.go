@@ -2,8 +2,8 @@ package dbclient
 
 import (
 	"fmt"
+	"database/sql"
 	"github.com/puoxiu/discron/common/pkg/logger"
-	"github.com/puoxiu/discron/common/pkg/utils/errors"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
@@ -13,12 +13,11 @@ var _defaultDB *gorm.DB
 func Init(dsn, logMode string, maxIdleConns, maxOpenConns int) (*gorm.DB, error) {
 
 	mysqlConfig := mysql.Config{
-		DSN:                       dsn,   // DSN data source name
-		DefaultStringSize:         256,   // string 类型字段的默认长度
-		SkipInitializeWithVersion: false, // 根据版本自动配置
+		DSN:                       dsn,
+		DefaultStringSize:         256,
+		SkipInitializeWithVersion: false,
 	}
 	if db, err := gorm.Open(mysql.New(mysqlConfig), setConfig(logMode)); err != nil {
-		logger.GetLogger().Error(fmt.Sprintf("mysql connect failed: %s", err.Error()))
 		return nil, err
 	} else {
 		sqlDB, _ := db.DB()
@@ -37,16 +36,20 @@ func GetMysqlDB() *gorm.DB {
 	return _defaultDB
 }
 
-func Insert(table string, val interface{}) error {
-	if _defaultDB == nil {
-		return errors.ErrClientNotFound
+func CreateDatabase(dsn string, driver string, createSql string) error {
+	db, err := sql.Open(driver, dsn)
+	if err != nil {
+		return err
 	}
-	return _defaultDB.Table(table).Create(val).Error
-}
-
-func DeleteById(table string, id int64) error {
-	if _defaultDB == nil {
-		return errors.ErrClientNotFound
+	defer func(db *sql.DB) {
+		err = db.Close()
+		if err != nil {
+			fmt.Println(err)
+		}
+	}(db)
+	if err = db.Ping(); err != nil {
+		return err
 	}
-	return _defaultDB.Exec(fmt.Sprintf("DELETE FROM %s WHERE id = ?", table), id).Error
+	_, err = db.Exec(createSql)
+	return err
 }
