@@ -14,6 +14,7 @@ require (
 	github.com/jessevdk/go-flags v1.6.1
 	github.com/natefinch/lumberjack v2.0.0+incompatible
 	github.com/ouqiang/goutil v1.4.6
+	github.com/pkg/errors v0.9.1
 	github.com/shirou/gopsutil v3.21.11+incompatible
 	github.com/spf13/viper v1.21.0
 	go.etcd.io/etcd/api/v3 v3.6.5

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/puoxiu/discron/common/pkg/dbclient"
 	"github.com/puoxiu/discron/common/pkg/logger"
 	"github.com/puoxiu/discron/common/pkg/notify"
 	"github.com/puoxiu/discron/common/pkg/server"
@@ -23,8 +24,7 @@ func main() {
 		fmt.Println("init node server error:", err.Error())
 		os.Exit(1)
 	}
-	logger.GetLogger().Debug(fmt.Sprintf("nodeServer:%#v", *nodeServer))
-	logger.GetLogger().Debug(fmt.Sprintf("node:%#v", *nodeServer.Node))
+	service.RegisterTables(dbclient.GetMysqlDB())
 	if err = nodeServer.Register(); err != nil {
 		logger.GetLogger().Error(fmt.Sprintf("register node into etcd error:%s", err.Error()))
 		os.Exit(1)

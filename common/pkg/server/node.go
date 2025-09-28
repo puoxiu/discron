@@ -78,6 +78,12 @@ func InitNodeServer(serverName string, inits ...func()) (*models.Config, error) 
 		Url:  defaultConfig.WebHook.Url,
 		Kind: defaultConfig.WebHook.Kind,
 	})
+
+	dsn := mysqlConfig.EmptyDsn()
+	createSql := fmt.Sprintf("CREATE DATABASE IF NOT EXISTS `%s` DEFAULT CHARACTER SET utf8mb4 ;", mysqlConfig.Dbname)
+	if err = dbclient.CreateDatabase(dsn, "mysql", createSql); err != nil {
+		logger.GetLogger().Error(fmt.Sprintf("create mysql database failed , error:%s", err.Error()))
+	}
 	//初始化数据层服务
 	_, err = dbclient.Init(mysqlConfig.Dsn(), mysqlConfig.LogMode, mysqlConfig.MaxIdleConns, mysqlConfig.MaxOpenConns)
 	if err != nil {
