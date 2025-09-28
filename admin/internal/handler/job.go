@@ -214,7 +214,7 @@ func (j *JobRouter) SearchLog(c *gin.Context) {
 func (j *JobRouter) Once(c *gin.Context) {
 	var req request.ReqJobOnce
 	var err error
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err = c.ShouldBindJSON(&req); err != nil {
 		logger.GetLogger().Error(fmt.Sprintf("[job_once] request parameter error:%s", err.Error()))
 		resp.FailWithMessage(resp.ErrorRequestParameter, "[job_once] request parameter error", c)
 		return
@@ -247,7 +247,7 @@ func (j *JobRouter) Once(c *gin.Context) {
 func (j *JobRouter) Kill(c *gin.Context) {
 	var req request.ReqJobKill
 	var err error
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err = c.ShouldBindJSON(&req); err != nil {
 		logger.GetLogger().Error(fmt.Sprintf("[job_once] request parameter error:%s", err.Error()))
 		resp.FailWithMessage(resp.ErrorRequestParameter, "[job_once] request parameter error", c)
 		return
