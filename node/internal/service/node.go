@@ -220,8 +220,6 @@ func (srv *NodeServer) addJob(j *handler.Job) {
 	if err != nil {
 		logger.GetLogger().Error(fmt.Sprintf("添加任务到调度器失败#%v", err.Error()))
 	}
-
-	return
 }
 func (srv *NodeServer) jobCronName(jobId int) string {
 	return fmt.Sprintf(srv.UUID+"/%d", jobId)
@@ -238,7 +236,6 @@ func (srv *NodeServer) modifyJob(j *handler.Job) {
 	srv.deleteJob(oldJob.ID)
 	//再
 	srv.addJob(j)
-	return
 }
 
 func (srv *NodeServer) deleteJob(jobId int) {
@@ -248,5 +245,4 @@ func (srv *NodeServer) deleteJob(jobId int) {
 		delete(srv.jobs, jobId)
 		return
 	}
-	return
 }

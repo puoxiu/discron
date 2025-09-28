@@ -31,6 +31,7 @@ var (
 
 var _defaultConfig *models.Config
 
+// 参数默认值 testing admin main
 func LoadConfig(env, serverName, configFileName string) (*models.Config, error) {
 	var c models.Config
 	var confPath string

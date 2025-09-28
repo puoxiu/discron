@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/puoxiu/discron/common/models"
 	"github.com/puoxiu/discron/common/pkg/dbclient"
 	"github.com/puoxiu/discron/common/pkg/logger"
 	"github.com/puoxiu/discron/common/pkg/notify"
@@ -15,16 +16,21 @@ import (
 const ServerName = "node"
 
 func main() {
-	if _, err := server.InitNodeServer(ServerName); err != nil {
+	var config *models.Config
+	var err error
+	if config, err = server.InitNodeServer(ServerName); err != nil {
 		fmt.Println("init node server error:", err.Error())
 		os.Exit(1)
 	}
+	fmt.Println("node server config:", config)
+
 	nodeServer, err := service.NewNodeServer()
 	if err != nil {
 		fmt.Println("init node server error:", err.Error())
 		os.Exit(1)
 	}
 	service.RegisterTables(dbclient.GetMysqlDB())
+	
 	if err = nodeServer.Register(); err != nil {
 		logger.GetLogger().Error(fmt.Sprintf("register node into etcd error:%s", err.Error()))
 		os.Exit(1)

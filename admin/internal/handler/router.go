@@ -17,7 +17,6 @@ func RegisterRouters(r *gin.Engine) {
 
 
 func configRoute(r *gin.Engine) {
-
 	hello := r.Group("/ping")
 	{
 		hello.GET("", func(c *gin.Context) {
@@ -80,12 +79,13 @@ func configRoute(r *gin.Engine) {
 		node.POST("del", defaultNodeRouter.Delete)
 	}
 }
+
 func configNoRoute(r *gin.Engine) {
-	r.LoadHTMLGlob("./dist/*.html") // npm打包成dist的路径
-	r.StaticFile("favicon.ico", "./dist/favicon.ico")
-	r.Static("/css", "./dist/css")         // dist里面的静态资源
-	r.Static("/fonts", "./dist/fonts")     // dist里面的静态资源
-	r.Static("/js", "./dist/js")           // dist里面的静态资源
-	r.Static("/img", "./dist/img")         // dist里面的静态资源
-	r.StaticFile("/", "./dist/index.html") // 前端网页入口页面
+	// r.LoadHTMLGlob("./dist/*.html") // npm打包成dist的路径
+	// r.StaticFile("favicon.ico", "./dist/favicon.ico")
+	// r.Static("/css", "./dist/css")         // dist里面的静态资源
+	// r.Static("/fonts", "./dist/fonts")     // dist里面的静态资源
+	// r.Static("/js", "./dist/js")           // dist里面的静态资源
+	// r.Static("/img", "./dist/img")         // dist里面的静态资源
+	// r.StaticFile("/", "./dist/index.html") // 前端网页入口页面
 }

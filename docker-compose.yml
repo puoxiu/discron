@@ -12,9 +12,9 @@ services:
       MYSQL_PASSWORD: xing_pwd          # 业务账号密码
       MYSQL_CHARSET: utf8mb4            # 避免中文乱码
       MYSQL_COLLATION: utf8mb4_unicode_ci
-    volumes:
+    # volumes:
       # 仅保留 SQL 脚本挂载（核心：每次启动容器自动执行 SQL 建表）
-      - ./script:/docker-entrypoint-initdb.d
+      # - ./script:/docker-entrypoint-initdb.d
     restart: always
     networks:
       - crony-network

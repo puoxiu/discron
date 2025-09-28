@@ -1,5 +1,13 @@
 # node 服务
 
+## run
+
+``` shell
+go run node/cmd/main.go -p
+
+``` 
+
+
 > node 服务是微服务系统中执行定时任务（cron 任务） 的核心节点，同时通过 Etcd 向系统暴露自身状态，供 admin 服务实时发现和管理
 * 自动向 Etcd 注册节点信息（ID/IP/PID），并通过租约维持在线状态；
 * 基于 cron 调度器管理和执行定时任务；

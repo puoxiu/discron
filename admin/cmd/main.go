@@ -41,6 +41,8 @@ func main() {
 
 	//初始化邮件配置
 	go notify.Serve()
+
+	// 启动日志清理服务
 	var closeChan chan struct{}
 	period := config.GetConfigModels().System.LogCleanPeriod
 	if period > 0 {

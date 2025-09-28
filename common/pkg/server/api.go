@@ -75,11 +75,11 @@ type ApiServer struct {
 }
 
 //get close Chan
-func (srv *ApiServer) getDoneChan() <-chan struct{} {
-	srv.mu.Lock()
-	defer srv.mu.Unlock()
-	return srv.getDoneChanLocked()
-}
+// func (srv *ApiServer) getDoneChan() <-chan struct{} {
+// 	srv.mu.Lock()
+// 	defer srv.mu.Unlock()
+// 	return srv.getDoneChanLocked()
+// }
 
 func (srv *ApiServer) getDoneChanLocked() chan struct{} {
 	if srv.doneChan == nil {
@@ -166,6 +166,7 @@ func (srv *ApiServer) setupSignal() {
 }
 
 func NewApiServer(serverName string, inits ...func()) (*ApiServer, error) {
+	// 1. parse flags and set
 	var parser = flags.NewParser(&ApiOptions, flags.Default)
 	if _, err := parser.Parse(); err != nil {
 		if flagsErr, ok := err.(*flags.Error); ok && flagsErr.Type == flags.ErrHelp {
@@ -174,7 +175,7 @@ func NewApiServer(serverName string, inits ...func()) (*ApiServer, error) {
 
 		return nil, err
 	}
-
+	// -v
 	if ApiOptions.Version {
 		fmt.Printf("%s Version:%s\n", ApiModule, Version)
 		os.Exit(0)
@@ -202,6 +203,7 @@ func NewApiServer(serverName string, inits ...func()) (*ApiServer, error) {
 		}
 	}
 
+	// 2. load config
 	var configFile = ApiOptions.ConfigFileName
 	if configFile == "" {
 		configFile = "main"
@@ -214,9 +216,11 @@ func NewApiServer(serverName string, inits ...func()) (*ApiServer, error) {
 	logConfig := defaultConfig.Log
 	mysqlConfig := defaultConfig.Mysql
 	etcdConfig := defaultConfig.Etcd
-	//log
+	
+	// 3. init logger
 	logger.Init(serverName, logConfig.Level, logConfig.Format, logConfig.Prefix, logConfig.Director, logConfig.ShowLine, logConfig.EncodeLevel, logConfig.StacktraceKey, logConfig.LogInConsole)
-	//notify
+	
+	// 4. init notify
 	notify.Init(&notify.Mail{
 		Port:     defaultConfig.Email.Port,
 		From:     defaultConfig.Email.From,
@@ -227,10 +231,10 @@ func NewApiServer(serverName string, inits ...func()) (*ApiServer, error) {
 		Url:  defaultConfig.WebHook.Url,
 		Kind: defaultConfig.WebHook.Kind,
 	})
-	//db
+	// 5. init db
 	dsn := mysqlConfig.EmptyDsn()
 	createSql := fmt.Sprintf("CREATE DATABASE IF NOT EXISTS `%s` DEFAULT CHARACTER SET utf8mb4 ;", mysqlConfig.Dbname)
-	if err := dbclient.CreateDatabase(dsn, "mysql", createSql); err != nil {
+	if err = dbclient.CreateDatabase(dsn, "mysql", createSql); err != nil {
 		logger.GetLogger().Error(fmt.Sprintf("create mysql database failed , error:%s", err.Error()))
 	}
 	_, err = dbclient.Init(mysqlConfig.Dsn(), mysqlConfig.LogMode, mysqlConfig.MaxIdleConns, mysqlConfig.MaxOpenConns)
@@ -239,7 +243,7 @@ func NewApiServer(serverName string, inits ...func()) (*ApiServer, error) {
 	} else {
 		logger.GetLogger().Info("api-server:init mysql success")
 	}
-	//etcd
+	// 6. init etcd
 	_, err = etcdclient.Init(etcdConfig.Endpoints, etcdConfig.DialTimeout, etcdConfig.ReqTimeout)
 	if err != nil {
 		logger.GetLogger().Error(fmt.Sprintf("api-server:init etcd failed , error:%s", err.Error()))
@@ -253,6 +257,7 @@ func NewApiServer(serverName string, inits ...func()) (*ApiServer, error) {
 		}
 	}
 
+	// 7. init api server and gin mode of running
 	apiServer := &ApiServer{
 		Addr: fmt.Sprintf(":%d", defaultConfig.System.Addr),
 	}

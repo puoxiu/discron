@@ -73,8 +73,9 @@ func (s *ServerReg) keepAlive() {
 			if leaseKeepResp == nil {
 				logger.GetLogger().Info("the lease renewal function has been turned off\n")
 				return
-			} else {
-				logger.GetLogger().Info("renew the lease successfully")
+			// } else {
+			// 	logger.GetLogger().Info("renew the lease successfully")
+			// }
 			}
 		}
 	}
