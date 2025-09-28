@@ -261,7 +261,7 @@ func (j *JobRouter) Kill(c *gin.Context) {
 	for _, p := range resps.Kvs {
 		var proc models.JobProcVal
 		if err := json.Unmarshal(p.Value, &proc); err != nil {
-			logger.GetLogger().Warn(fmt.Sprintf("job_proc[%s] unmarshal error: %s", string(p.Key), err.Error()))
+			logger.GetLogger().Warn(fmt.Sprintf("job_kill[%s] unmarshal error: %s", string(p.Key), err.Error()))
 			continue
 		}
 		//进程已经被杀死
@@ -271,13 +271,13 @@ func (j *JobRouter) Kill(c *gin.Context) {
 		proc.Killed = true
 		b, err := json.Marshal(&proc)
 		if err != nil {
-			logger.GetLogger().Warn(fmt.Sprintf("job_proc[%s] marshal error: %s", string(p.Key), err.Error()))
+			logger.GetLogger().Warn(fmt.Sprintf("job_kill[%s] marshal error: %s", string(p.Key), err.Error()))
 			continue
 		}
 		//修改
 		_, err = etcdclient.Put(string(p.Key), string(b))
 		if err != nil {
-			logger.GetLogger().Warn(fmt.Sprintf("job_proc[%s] etcd put  error: %s", string(p.Key), err.Error()))
+			logger.GetLogger().Warn(fmt.Sprintf("job_kill[%s] etcd put  error: %s", string(p.Key), err.Error()))
 			continue
 		}
 	}

@@ -6,10 +6,19 @@ import (
 	"github.com/puoxiu/discron/admin/internal/model/resp"
 )
 
-func RegisterRouters(c *gin.Engine) {
-	//跨域
-	c.Use(middlerware.Cors())
-	hello := c.Group("/ping")
+
+func RegisterRouters(r *gin.Engine) {
+	r.Use(middlerware.Cors())
+
+	configRoute(r)
+
+	configNoRoute(r)
+}
+
+
+func configRoute(r *gin.Engine) {
+
+	hello := r.Group("/ping")
 	{
 		hello.GET("", func(c *gin.Context) {
 			c.JSON(200, "pong")
@@ -27,22 +36,23 @@ func RegisterRouters(c *gin.Engine) {
 			c.JSON(200, "hello,"+h.Name)
 		})
 	}
-	
-	base := c.Group("")
+
+	base := r.Group("")
 	{
 		base.POST("register", defaultUserRouter.Register)
 		base.POST("login", defaultUserRouter.Login)
 	}
 
-	stat := c.Group("/statics")
+	stat := r.Group("/statis")
 	stat.Use(middlerware.JWTAuth())
 	{
 		stat.GET("today", defaultStatRouter.GetTodayStatistics)
 		stat.GET("week", defaultStatRouter.GetWeekStatistics)
 		stat.GET("system", defaultStatRouter.GetSystemInfo)
+
 	}
 
-	job := c.Group("/job")
+	job := r.Group("/job")
 	job.Use(middlerware.JWTAuth())
 	{
 		job.POST("add", defaultJobRouter.CreateOrUpdate)
@@ -51,9 +61,10 @@ func RegisterRouters(c *gin.Engine) {
 		job.POST("search", defaultJobRouter.Search)
 		job.POST("log", defaultJobRouter.SearchLog)
 		job.POST("once", defaultJobRouter.Once)
+		job.POST("kill", defaultJobRouter.Kill)
 	}
 
-	user := c.Group("/user")
+	user := r.Group("/user")
 	user.Use(middlerware.JWTAuth())
 	{
 		user.POST("del", defaultUserRouter.Delete)
@@ -62,9 +73,19 @@ func RegisterRouters(c *gin.Engine) {
 		user.GET("find", defaultUserRouter.FindById)
 		user.POST("search", defaultUserRouter.Search)
 	}
-	node := c.Group("/node")
+	node := r.Group("/node")
 	node.Use(middlerware.JWTAuth())
 	{
 		node.POST("search", defaultNodeRouter.Search)
+		node.POST("del", defaultNodeRouter.Delete)
 	}
+}
+func configNoRoute(r *gin.Engine) {
+	r.LoadHTMLGlob("./dist/*.html") // npm打包成dist的路径
+	r.StaticFile("favicon.ico", "./dist/favicon.ico")
+	r.Static("/css", "./dist/css")         // dist里面的静态资源
+	r.Static("/fonts", "./dist/fonts")     // dist里面的静态资源
+	r.Static("/js", "./dist/js")           // dist里面的静态资源
+	r.Static("/img", "./dist/img")         // dist里面的静态资源
+	r.StaticFile("/", "./dist/index.html") // 前端网页入口页面
 }
