@@ -10,6 +10,7 @@ import (
 )
 
 type JobType int
+type AllocationType int
 
 const (
 	JobTypeCmd  = JobType(1)
@@ -24,8 +25,8 @@ const (
 	JobStatusNotAssigned = 0
 	JobStatusAssigned    = 1
 
-	ManualAllocation = 1
-	AutoAllocation   = 2
+	ManualAllocation = AllocationType(1)
+	AutoAllocation   = AllocationType(2)
 )
 
 // register to  /Cronix/job/<node_uuid>/<job_id>

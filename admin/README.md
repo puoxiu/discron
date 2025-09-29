@@ -9,9 +9,9 @@ go run admin/cmd/main.go
 go run admin/cmd/main.go -p
 
 # with health check
-go run admin/cmd/main.go -h
+go run admin/cmd/main.go -a
 
-go run admin/cmd/main.go -h -p
+go run admin/cmd/main.go -a -p
 
 ```
 

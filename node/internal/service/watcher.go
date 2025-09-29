@@ -20,6 +20,7 @@ func (srv *NodeServer) watchJobs() {
 		for _, ev := range wresp.Events {
 			switch {
 			case ev.IsCreate():
+				// fmt.Println("新的定时任务:", string(ev.Kv.Key))
 				var job handler.Job
 				if err := json.Unmarshal(ev.Kv.Value, &job); err != nil {
 					err = fmt.Errorf("watch job[%s] create json umarshal err: %s", string(ev.Kv.Key), err.Error())

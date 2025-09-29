@@ -23,7 +23,7 @@ type (
 	ReqJobUpdate struct {
 		*models.Job
 		//分配方式
-		Allocation int `json:"allocation" form:"allocation" binding:"required"`
+		Allocation models.AllocationType `json:"allocation" form:"allocation" binding:"required"`
 	}
 	ReqJobOnce struct {
 		JobId    int    `json:"job_id" form:"job_id"`

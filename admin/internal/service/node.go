@@ -35,6 +35,7 @@ func NewNodeWatcherService() *NodeWatcherService {
 	}
 }
 
+// Watch 启动节点监控：先拉取现有节点，再启动监听协程
 func (n *NodeWatcherService) Watch() error {
 	resp, err := n.client.Get(context.Background(), etcdclient.KeyEtcdNodeProfile, clientv3.WithPrefix())
 	if err != nil {
@@ -46,6 +47,7 @@ func (n *NodeWatcherService) Watch() error {
 	return nil
 }
 
+// watcher 持续监听 etcd 中节点的 PUT/DELETE 事件
 func (n *NodeWatcherService) watcher() {
 	rch := n.client.Watch(context.Background(), etcdclient.KeyEtcdNodeProfile, clientv3.WithPrefix())
 	for wresp := range rch {
@@ -93,6 +95,7 @@ func (n *NodeWatcherService) watcher() {
 	}
 }
 
+// extractNodes 从etcd中提取节点信息 存储到内存
 func (n *NodeWatcherService) extractNodes(resp *clientv3.GetResponse) []string {
 	nodes := make([]string, 0)
 	if resp == nil || resp.Kvs == nil {
@@ -107,6 +110,7 @@ func (n *NodeWatcherService) extractNodes(resp *clientv3.GetResponse) []string {
 	return nodes
 }
 
+// setNodeList 新增/更新节点到内存，并为未分配任务分配节点
 func (n *NodeWatcherService) setNodeList(key, val string) {
 	var node models.Node
 	err := json.Unmarshal([]byte(val), &node)

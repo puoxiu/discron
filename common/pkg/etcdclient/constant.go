@@ -1,5 +1,6 @@
 package etcdclient
 
+// etcd key 常量
 const (
 	keyEtcdProfile = "/Cronix/"
 
