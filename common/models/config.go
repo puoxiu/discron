@@ -10,6 +10,7 @@ const (
 	CronixJobTableName    = "cronix_job"
 	CronixJobLogTableName = "cronix_job_log"
 	CronixUserTableName   = "cronix_user"
+	CronixScriptTableName = "cronix_script"
 )
 
 type (

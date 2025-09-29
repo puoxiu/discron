@@ -78,6 +78,14 @@ func configRoute(r *gin.Engine) {
 		node.POST("search", defaultNodeRouter.Search)
 		node.POST("del", defaultNodeRouter.Delete)
 	}
+	script := r.Group("/script")
+	script.Use(middlerware.JWTAuth())
+	{
+		script.POST("add", defaultScriptRouter.CreateOrUpdate)
+		script.POST("del", defaultScriptRouter.Delete)
+		script.GET("find", defaultScriptRouter.FindById)
+		script.POST("search", defaultScriptRouter.Search)
+	}
 }
 
 func configNoRoute(r *gin.Engine) {

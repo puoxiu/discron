@@ -42,6 +42,11 @@ func (j *JobRouter) CreateOrUpdate(c *gin.Context) {
 		req.NotifyTo = notifyTo
 	}
 
+	if len(req.ScriptIDArray) > 0 {
+		scriptID, _ := json.Marshal(req.ScriptIDArray)
+		req.ScriptID = scriptID
+	}
+
 	switch req.Allocation {
 	case models.AutoAllocation: //2
 		if !config.GetConfigModels().System.CmdAutoAllocation && req.Type == models.JobTypeCmd {
@@ -163,6 +168,7 @@ func (j *JobRouter) FindById(c *gin.Context) {
 	}
 	if len(job.NotifyTo) != 0 {
 		_ = json.Unmarshal(job.NotifyTo, &job.NotifyToArray)
+		_ = json.Unmarshal(job.ScriptID, &job.ScriptIDArray)
 	}
 	resp.OkWithDetailed(job, "find success", c)
 }
@@ -184,6 +190,7 @@ func (j *JobRouter) Search(c *gin.Context) {
 	var resultJobs []models.Job
 	for _, job := range jobs {
 		_ = json.Unmarshal(job.NotifyTo, &job.NotifyToArray)
+		_ = json.Unmarshal(job.ScriptID, &job.ScriptIDArray)
 		resultJobs = append(resultJobs, job)
 	}
 	resp.OkWithDetailed(resp.PageResult{
