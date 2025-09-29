@@ -37,15 +37,6 @@ func (j *JobRouter) CreateOrUpdate(c *gin.Context) {
 	var err error
 	var insertId int
 	t := time.Now()
-	if len(req.NotifyToArray) > 0 {
-		notifyTo, _ := json.Marshal(req.NotifyToArray)
-		req.NotifyTo = notifyTo
-	}
-
-	if len(req.ScriptIDArray) > 0 {
-		scriptID, _ := json.Marshal(req.ScriptIDArray)
-		req.ScriptID = scriptID
-	}
 
 	switch req.Allocation {
 	case models.AutoAllocation: //2

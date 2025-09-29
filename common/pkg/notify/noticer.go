@@ -3,6 +3,7 @@ package notify
 import (
 	"github.com/puoxiu/discron/common/pkg/utils"
 	"time"
+	"strings"
 )
 
 type Noticer interface {
@@ -66,4 +67,7 @@ func (m *Message) Check() {
 	if m.OccurTime == "" {
 		m.OccurTime = time.Now().Format(utils.TimeFormatSecond)
 	}
+	//Remove the transfer character
+	m.Body = strings.Replace(m.Body, "\"", "'", -1)
+	m.Body = strings.Replace(m.Body, "\n", "", -1)
 }

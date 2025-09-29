@@ -2,6 +2,7 @@ package request
 
 import (
 	"github.com/puoxiu/discron/common/models"
+	"encoding/json"
 )
 
 type (
@@ -40,5 +41,10 @@ func (r *ReqJobUpdate) Valid() error {
 	if r.Allocation == 0 {
 		r.Allocation = models.AutoAllocation
 	}
+	notifyTo, _ := json.Marshal(r.NotifyToArray)
+	r.NotifyTo = notifyTo
+	scriptID, _ := json.Marshal(r.ScriptIDArray)
+	r.ScriptID = scriptID
+
 	return r.Check()
 }
