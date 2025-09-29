@@ -11,64 +11,6 @@
 * 任务持久化：通过数据存储模块（需配置数据库 / 本地文件）确保任务重启不丢失
 
 
-
-
- ```mermaid
-graph TD
-    %% 顶层：用户交互层
-    subgraph "用户层"
-        Web["Web界面"]
-        Admin["管理客户端"]
-    end
-
-    %% 调度协调层
-    subgraph "调度层"
-        API["API服务<br/>(调度中心)"]
-        Etcd["Etcd集群<br/>(服务发现 & 状态存储)"]
-    end
-
-    %% 节点集群层
-    subgraph "节点集群"
-        Node1["Node1 (正常)"]
-        Node2["Node2 (正常)"]
-        Node3["Node3 (正常)"]
-        Node4["Node4 (故障)"]
-    end
-
-    %% 数据与告警层
-    subgraph "数据 & 告警层"
-        SQL["SQL数据库<br/>(执行日志存储)"]
-        Alarm["告警通知系统"]
-    end
-
-    %% 交互关系
-    Web -->|任务操作| API
-    Admin -->|任务管理| API
-
-    API -->|写入任务 & 节点状态| Etcd
-    Etcd -->|任务分配 & 状态同步| Node1
-    Etcd -->|任务分配 & 状态同步| Node2
-    Etcd -->|任务分配 & 状态同步| Node3
-    Etcd -->|检测故障| Node4
-
-    %% 故障转移逻辑
-    Node4 -->|故障转移| Node1
-    Node1 -->|任务转发| Node2
-    Node2 -->|继续传递| Node3
-
-    %% 日志与告警
-    Node1 --> SQL
-    Node2 --> SQL
-    Node3 --> SQL
-
-    Node1 -->|执行失败| Alarm
-    Node2 -->|执行失败| Alarm
-    Node3 -->|执行失败| Alarm
-    Node4 -->|节点故障| Alarm
-
-```
-
-
 ``` mermaid
 graph TD
     %% 顶层：用户交互层
