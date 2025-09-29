@@ -142,9 +142,8 @@ func (srv *NodeServer) Down() {
 	if err != nil {
 		logger.GetLogger().Error(fmt.Sprintf("failed to update  node[%s] down  error:%s", srv.UUID, err.Error()))
 	}
-	err = dbclient.GetMysqlDB().Table(models.CronixJobTableName).Select("status", "run_on").Where("run_on = ? ", srv.UUID).Updates(models.Job{
+	err = dbclient.GetMysqlDB().Table(models.CronixJobTableName).Select("status").Where("run_on = ? ", srv.UUID).Updates(models.Job{
 		Status: models.JobStatusNotAssigned,
-		RunOn:  "",
 	}).Error
 
 	if err != nil {
@@ -172,7 +171,7 @@ func (srv *NodeServer) Run() (err error) {
 	//start cron
 	srv.Cron.Start()
 	go srv.watchJobs()
-	go srv.watchKilledProc()
+	// go srv.watchKilledProc()
 	go srv.watchOnce()
 	go srv.watchSystemInfo()
 	return

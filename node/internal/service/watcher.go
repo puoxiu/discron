@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"syscall"
 	"go.etcd.io/etcd/api/v3/mvccpb"
 	"github.com/puoxiu/discron/common/models"
 	"github.com/puoxiu/discron/common/pkg/logger"
@@ -46,36 +45,36 @@ func (srv *NodeServer) watchJobs() {
 	}
 }
 
-func (srv *NodeServer) watchKilledProc() {
-	rch := handler.WatchProc(srv.UUID)
-	for wresp := range rch {
-		for _, ev := range wresp.Events {
-			switch {
-			//监控是否被修改
-			case ev.IsModify():
-				proc, err := handler.GetProcFromKey(string(ev.Kv.Key))
-				if err != nil {
-					logger.GetLogger().Error(fmt.Sprintf("watch killed proc error:%s kv:%s", err.Error(), ev.Kv.String()))
-					continue
-				}
-				procVal := &models.JobProcVal{}
-				err = json.Unmarshal(ev.Kv.Value, procVal)
-				if err != nil {
-					logger.GetLogger().Warn(fmt.Sprintf("watch killed proc json warn:%s kv:%s", err.Error(), ev.Kv.String()))
-					continue
-				}
-				proc.JobProcVal = *procVal
-				if proc.Killed {
-					if err := syscall.Kill(-proc.ID, syscall.SIGKILL); err != nil {
-						logger.GetLogger().Error(fmt.Sprintf("process:[%d] force kill failed, error:[%s]", proc.ID, err))
-						return
-					}
+// func (srv *NodeServer) watchKilledProc() {
+// 	rch := handler.WatchProc(srv.UUID)
+// 	for wresp := range rch {
+// 		for _, ev := range wresp.Events {
+// 			switch {
+// 			//监控是否被修改
+// 			case ev.IsModify():
+// 				proc, err := handler.GetProcFromKey(string(ev.Kv.Key))
+// 				if err != nil {
+// 					logger.GetLogger().Error(fmt.Sprintf("watch killed proc error:%s kv:%s", err.Error(), ev.Kv.String()))
+// 					continue
+// 				}
+// 				procVal := &models.JobProcVal{}
+// 				err = json.Unmarshal(ev.Kv.Value, procVal)
+// 				if err != nil {
+// 					logger.GetLogger().Warn(fmt.Sprintf("watch killed proc json warn:%s kv:%s", err.Error(), ev.Kv.String()))
+// 					continue
+// 				}
+// 				proc.JobProcVal = *procVal
+// 				if proc.Killed {
+// 					if err := syscall.Kill(-proc.ID, syscall.SIGKILL); err != nil {
+// 						logger.GetLogger().Error(fmt.Sprintf("process:[%d] force kill failed, error:[%s]", proc.ID, err))
+// 						return
+// 					}
 
-				}
-			}
-		}
-	}
-}
+// 				}
+// 			}
+// 		}
+// 	}
+// }
 
 func (srv *NodeServer) watchSystemInfo() {
 	rch := handler.WatchSystem(srv.UUID)

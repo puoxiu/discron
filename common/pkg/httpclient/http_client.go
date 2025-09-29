@@ -66,7 +66,6 @@ func PostParams(url string, params string, timeout int64) (result string, err er
 	result = string(data)
 	return
 }
-
 func PostJson(url string, body string, timeout int64) (result string, err error) {
 	var client = &http.Client{}
 
@@ -84,13 +83,9 @@ func PostJson(url string, body string, timeout int64) (result string, err error)
 		return
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		err = fmt.Errorf("response status code is not 200")
-		return
-	}
 	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		//logger.GetLogger().Warn(fmt.Sprintf("http post api url:%s send  err: %s", url, err.Error()))
+		logger.GetLogger().Warn(fmt.Sprintf("http post api url:%s send  err: %s", url, err.Error()))
 		return
 	}
 	result = string(data)

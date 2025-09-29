@@ -3,8 +3,10 @@ package notify
 import (
 	"bytes"
 	"fmt"
-	"github.com/go-gomail/gomail"
 	"html/template"
+
+	"github.com/go-gomail/gomail"
+	"github.com/puoxiu/discron/common/pkg/logger"
 )
 
 const (
@@ -89,8 +91,8 @@ func (mail *Mail) SendMsg(msg *Message) {
 
 	d := gomail.NewDialer(_defaultMail.Host, _defaultMail.Port, _defaultMail.From, _defaultMail.Secret)
 	if err := d.DialAndSend(m); err != nil {
-		fmt.Println(err)
-		//logger.GetLogger().Warn(fmt.Sprintf("smtp send msg[%+v] err: %s", msg, err.Error()))
+		// fmt.Println(err)
+		logger.GetLogger().Warn(fmt.Sprintf("smtp send msg[%+v] err: %s", msg, err.Error()))
 	}
 }
 
