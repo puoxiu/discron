@@ -134,14 +134,16 @@ func (srv *NodeServer) Stop(i interface{}) {
 	srv.Cron.Stop()
 }
 
-//结点实例停用后，在 mysql 中去掉存活信息
+//Node 服务停止时调用 Down()
 func (srv *NodeServer) Down() {
+	// 1. 更新节点状态为“离线”（NodeConnFail），写入 MySQL
 	srv.Status = models.NodeConnFail
 	srv.DownTime = time.Now().Unix()
 	err := srv.Node.Update()
 	if err != nil {
 		logger.GetLogger().Error(fmt.Sprintf("failed to update  node[%s] down  error:%s", srv.UUID, err.Error()))
 	}
+	// 2. 重置该节点上所有任务的状态为“未分配”（JobStatusNotAssigned）
 	err = dbclient.GetMysqlDB().Table(models.CronixJobTableName).Select("status").Where("run_on = ? ", srv.UUID).Updates(models.Job{
 		Status: models.JobStatusNotAssigned,
 	}).Error
@@ -154,7 +156,7 @@ func (srv *NodeServer) Down() {
 func (srv *NodeServer) Run() (err error) {
 	defer func() {
 		if err != nil {
-			srv.Stop(err)
+			srv.Stop(err)	// 发生错误时，停用服务
 		}
 	}()
 

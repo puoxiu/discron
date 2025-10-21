@@ -88,6 +88,7 @@ func (j *Job) RunWithRecovery() {
 	if err != nil {
 		logger.GetLogger().Warn(fmt.Sprintf("Failed to write to job log with jobID:%d nodeUUID: %s error:%s", j.ID, j.RunOn, err.Error()))
 	}
+	// 创建任务执行器
 	h := CreateHandler(j)
 	if h == nil {
 		//logger and error

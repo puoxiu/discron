@@ -40,7 +40,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// mail
 	go notify.Serve()
 
 	logger.GetLogger().Info(fmt.Sprintf("crony node %s service started, Ctrl+C or send kill sign to exit", nodeServer.String()))

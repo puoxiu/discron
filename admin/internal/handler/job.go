@@ -32,8 +32,8 @@ func (j *JobRouter) CreateOrUpdate(c *gin.Context) {
 		resp.FailWithMessage(resp.ErrorJobFormat, "[create_job] check error", c)
 		return
 	}
-	fmt.Printf("看看 req.Job: %+v\n", req.Job)  // 打印Job的具体内容
-	fmt.Printf("看看 req.Allocation: %+v\n", req.Allocation)  // 单独打印分配方式（可选）
+	// fmt.Printf("看看 req.Job: %+v\n", req.Job)  // 打印Job的具体内容
+	// fmt.Printf("看看 req.Allocation: %+v\n", req.Allocation)  // 单独打印分配方式（可选）
 	var err error
 	var insertId int
 	t := time.Now()
@@ -105,6 +105,7 @@ func (j *JobRouter) CreateOrUpdate(c *gin.Context) {
 		resp.FailWithMessage(resp.ERROR, "[create_job] json marshal job error", c)
 		return
 	}
+	// 写入 Etcd：路径格式为 /Cronix/job/<nodeUUID>/<jobID>
 	_, err = etcdclient.Put(fmt.Sprintf(etcdclient.KeyEtcdJob, req.RunOn, req.ID), string(b))
 	if err != nil {
 		logger.GetLogger().Error(fmt.Sprintf("[create_job] etcd put job error:%s", err.Error()))

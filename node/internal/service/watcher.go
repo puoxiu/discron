@@ -14,6 +14,7 @@ import (
 )
 
 func (srv *NodeServer) watchJobs() {
+	// 监听 etcd 中 /Cronix/job/<nodeUUID>/ 路径下的所有 job 变化，返回的是chann
 	rch := handler.WatchJobs(srv.UUID)
 	for wresp := range rch {
 		for _, ev := range wresp.Events {
