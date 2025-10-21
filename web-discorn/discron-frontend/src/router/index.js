@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { getToken } from '../utils/auth';
+import MainLayout from '../components/layout/MainLayout.vue';
 
 // 路由规则
 const routes = [
@@ -8,6 +9,30 @@ const routes = [
     name: 'Home',
     component: () => import('../views/Home.vue'),
     meta: { requiresAuth: true } // 需要登录才能访问
+  },
+  {
+    path: '/users',
+    name: 'Users',
+    component: () => import('../views/users/Users.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/jobs',
+    name: 'Jobs',
+    component: () => import('../views/jobs/Jobs.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/logs',
+    name: 'Logs',
+    component: () => import('../views/logs/Logs.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/nodes',
+    name: 'Nodes',
+    component: () => import('../views/nodes/Nodes.vue'),
+    meta: { requiresAuth: true }
   },
   {
     path: '/login',
