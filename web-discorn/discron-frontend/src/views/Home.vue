@@ -1,6 +1,6 @@
 <template>
   <div class="home">
-    <h2 class="page-title">仪表盘</h2>
+    <h2 class="page-title">当前状态</h2>
     <div class="stats-grid">
       <stats-card
         v-for="card in statsCards"
@@ -42,33 +42,27 @@ import { ref, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import { Setting, Document, Operation, Warning } from '@element-plus/icons-vue';
 import StatsCard from '../components/StatsCard.vue';
-import { getDashboardStats } from '../api/dashboard';
+import { getTodayStatistics } from '../api/home';
 
 // 统计数据卡片配置
 const statsCards = ref([
   {
-    label: '运行节点数',
+    label: '正常运行节点数',
     value: '0',
     icon: Setting,
-    type: 'primary'
-  },
-  {
-    label: '任务总数',
-    value: '0',
-    icon: Document,
     type: 'success'
   },
   {
-    label: '运行中任务',
-    value: '0',
-    icon: Operation,
-    type: 'warning'
-  },
-  {
-    label: '失败任务',
+    label: '异常节点数',
     value: '0',
     icon: Warning,
     type: 'danger'
+  },
+  {
+    label: '正在执行任务数',
+    value: '0',
+    icon: Operation,
+    type: 'warning'
   }
 ]);
 
@@ -100,13 +94,15 @@ const recentLogs = ref([
 // 获取统计数据
 const fetchStats = async () => {
   try {
-    const res = await getDashboardStats();
-    const data = res.data;
+    const todayStats = await getTodayStatistics();
+
+    console.log('todayStats:', todayStats);
+
+    const data = todayStats.data;
     // 更新统计卡片数据
-    statsCards.value[0].value = data.nodeCount || '0';
-    statsCards.value[1].value = data.totalJobs || '0';
-    statsCards.value[2].value = data.runningJobs || '0';
-    statsCards.value[3].value = data.failedJobs || '0';
+    statsCards.value[0].value = data.normal_node_count || '0';
+    statsCards.value[1].value = data.fail_node_count || '0';
+    statsCards.value[2].value = data.job_running_count || '0';
     
     // 如果后端返回了最近日志，更新日志数据
     if (data.recentLogs) {

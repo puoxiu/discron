@@ -275,7 +275,7 @@ func NewApiServer(serverName string, inits ...func()) (*ApiServer, error) {
 
 // ListenAndServe Listen And Serve()
 func (srv *ApiServer) ListenAndServe() error {
-	srv.Engine = gin.New()
+	srv.Engine = gin.Default()
 	srv.Engine.Use(srv.apiRecoveryMiddleware())
 
 	for _, service := range srv.Services {

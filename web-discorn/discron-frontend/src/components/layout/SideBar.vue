@@ -28,8 +28,8 @@
         <span>日志</span>
       </el-menu-item>
       <el-menu-item index="/nodes">
-        <el-icon><link /></el-icon>
-        <span>节点管理</span>
+        <el-icon><Monitor /></el-icon>
+        <span>节点信息</span>
       </el-menu-item>
     </el-menu>
   </el-aside>
@@ -38,7 +38,7 @@
 <script setup>
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
-import { HomeFilled, User, Document, Message, Link } from '@element-plus/icons-vue';
+import { HomeFilled, User, Document, Message, Monitor } from '@element-plus/icons-vue';
 
 const route = useRoute();
 
