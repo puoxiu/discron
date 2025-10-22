@@ -153,7 +153,7 @@
 // 脚本部分保持不变
 import { ref, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
-import { getLogs } from '../../api/log';
+import { getLogs } from '../../api/job';
 
 const logs = ref([]);
 const total = ref(0);

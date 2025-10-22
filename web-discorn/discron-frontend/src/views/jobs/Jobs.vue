@@ -72,7 +72,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import { Plus } from '@element-plus/icons-vue';
-import { getJobs } from '../../api/dashboard';
+import { getJobs } from '../../api/job';
 
 const jobs = ref([
   {
