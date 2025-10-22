@@ -2,9 +2,10 @@ import request from './request';
 
 
 // 获取日志列表
-export const getLogs = () => {
+export const getLogs = (data) => {
   return request({
     url: '/job/log',
-    method: 'get'
+    method: 'post',
+    data
   });
 };
