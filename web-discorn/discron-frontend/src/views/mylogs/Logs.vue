@@ -1,6 +1,5 @@
 <template>
   <div class="logs-page">
-    <h2 class="page-title">日志管理</h2>
     <el-card>
       <template #header>
         <div class="card-header">
@@ -49,7 +48,7 @@
             />
           </el-form-item>
           
-          <el-form-item>
+          <el-form-item class="button-group-item">
             <el-button type="primary" icon="Search" @click="handleSearch">搜索</el-button>
             <el-button icon="Refresh" @click="handleReset">重置</el-button>
           </el-form-item>
@@ -84,7 +83,6 @@
                     {{ scope.row.node_uuid || '-' }}
                   </el-descriptions-item>
                   <el-descriptions-item label="执行时长">
-                    <!-- 用开始/结束时间计算时长（后端未返回time_cost） -->
                     {{ calculateDuration(scope.row.start_time, scope.row.end_time) }}
                   </el-descriptions-item>
                   <el-descriptions-item label="执行时间">
@@ -104,6 +102,10 @@
                   <el-descriptions-item label="调度规则" :span="2">
                     {{ scope.row.spec || '-' }}
                   </el-descriptions-item>
+                  <!-- 新增：输出信息展示 -->
+                  <el-descriptions-item label="输出信息" :span="2">
+                    <el-text class="output-text">{{ scope.row.output || '-' }}</el-text>
+                  </el-descriptions-item>
                 </el-descriptions>
               </div>
             </template>
@@ -119,13 +121,11 @@
               </el-tag>
             </template>
           </el-table-column>
-          <!-- 修复：重试次数字段适配后端retry_times -->
           <el-table-column label="重试次数" width="100">
             <template #default="scope">
               {{ scope.row.retry_times || 0 }}
             </template>
           </el-table-column>
-          <!-- 修复：时间字段改用后端start_time -->
           <el-table-column label="执行时间" width="180">
             <template #default="scope">
               {{ formatTime(scope.row.start_time) }}
@@ -150,11 +150,11 @@
 </template>
 
 <script setup>
+// 脚本部分保持不变
 import { ref, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import { getLogs } from '../../api/log';
 
-// 数据定义
 const logs = ref([]);
 const total = ref(0);
 const searchKeyword = ref('');
@@ -162,63 +162,33 @@ const statusFilter = ref('');
 const dateRange = ref(null);
 const currentPage = ref(1);
 const pageSize = ref(10);
-const searchForm = ref({}); // 用于el-form的model
+const searchForm = ref({});
 
-// 获取日志列表
 const fetchLogs = async () => {
   try {
-    const params = {
-      page: currentPage.value,
-      page_size: pageSize.value,
-    };
-    
-    // 添加任务名称筛选
-    if (searchKeyword.value) {
-      params.name = searchKeyword.value;
-    }
-    
-    // 添加状态筛选
-    if (statusFilter.value) {
-      params.success = statusFilter.value === 'success';
-    }
-    
-    // 添加日期范围筛选（适配后端start_time字段，转秒级时间戳）
+    const params = { page: currentPage.value, page_size: pageSize.value };
+    if (searchKeyword.value) params.name = searchKeyword.value;
+    if (statusFilter.value) params.success = statusFilter.value === 'success';
     if (dateRange.value && dateRange.value.length === 2) {
       params.start_time = Math.floor(dateRange.value[0].getTime() / 1000);
       params.end_time = Math.floor(dateRange.value[1].getTime() / 1000);
     }
-    
-    console.log('请求参数:', params);
+
     const res = await getLogs(params);
-    console.log('接口返回结果:', res);
-    
     if (res.code === 200 && res.data) {
       logs.value = res.data.list || [];
       total.value = res.data.total || 0;
-      
-      // 调试：确认关键字段
-      if (logs.value.length > 0) {
-        console.log('时间字段:', logs.value[0].start_time, '类型:', typeof logs.value[0].start_time);
-        console.log('重试次数字段:', logs.value[0].retry_times);
-      }
-      
       ElMessage.success(`加载成功，共 ${total.value} 条日志`);
     } else {
       ElMessage.error(res.msg || '获取日志列表失败');
     }
   } catch (error) {
     ElMessage.error('获取日志列表失败');
-    console.error('获取日志列表失败:', error);
+    console.error(error);
   }
 };
 
-// 搜索处理
-const handleSearch = () => {
-  currentPage.value = 1; // 搜索时重置到第一页
-  fetchLogs();
-};
-
-// 重置搜索条件
+const handleSearch = () => { currentPage.value = 1; fetchLogs(); };
 const handleReset = () => {
   searchKeyword.value = '';
   statusFilter.value = '';
@@ -226,75 +196,29 @@ const handleReset = () => {
   currentPage.value = 1;
   fetchLogs();
 };
+const handleSizeChange = (size) => { pageSize.value = size; currentPage.value = 1; fetchLogs(); };
+const handleCurrentChange = (current) => { currentPage.value = current; fetchLogs(); };
 
-// 分页处理
-const handleSizeChange = (size) => {
-  pageSize.value = size;
-  currentPage.value = 1;
-  fetchLogs();
-};
-
-const handleCurrentChange = (current) => {
-  currentPage.value = current;
-  fetchLogs();
-};
-
-// 格式化时间（适配后端秒级时间戳）
 const formatTime = (timestamp) => {
-  // 后端返回0表示无时间，直接显示"-"
   if (!timestamp || timestamp === 0) return '-';
-  
-  // 确认是秒级时间戳（10位），转成毫秒给Date
-  const msTimestamp = typeof timestamp === 'number' ? timestamp * 1000 : Number(timestamp) * 1000;
-  const date = new Date(msTimestamp);
-  
-  // 检查时间有效性
+  const ms = typeof timestamp === 'number' ? timestamp * 1000 : Number(timestamp) * 1000;
+  const date = new Date(ms);
   if (isNaN(date.getTime())) return '-';
-  
-  // 格式化输出
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  const seconds = String(date.getSeconds()).padStart(2, '0');
-  
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+  return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,0)}-${String(date.getDate()).padStart(2,0)} ${String(date.getHours()).padStart(2,0)}:${String(date.getMinutes()).padStart(2,0)}:${String(date.getSeconds()).padStart(2,0)}`;
 };
 
-// 计算执行时长（用start_time和end_time计算，适配后端字段）
 const calculateDuration = (startTime, endTime) => {
-  // 后端end_time为0表示未结束，显示"执行中"
   if (startTime === 0 || endTime === 0) return '执行中';
-  
-  // 计算秒数差，转成"分:秒"格式
-  const durationSec = endTime - startTime;
-  if (durationSec < 0) return '00:00';
-  
-  const minutes = Math.floor(durationSec / 60);
-  const seconds = durationSec % 60;
-  
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  const sec = endTime - startTime;
+  if (sec < 0) return '00:00';
+  return `${String(Math.floor(sec/60)).padStart(2,0)}:${String(sec%60).padStart(2,0)}`;
 };
 
-// 初始化加载
-onMounted(() => {
-  fetchLogs();
-});
+onMounted(() => fetchLogs());
 </script>
 
 <style scoped>
-/* 样式保持不变，沿用之前的 */
-.logs-page {
-  width: 100%;
-}
-
-.page-title {
-  font-size: 24px;
-  font-weight: 600;
-  color: #303133;
-  margin-bottom: 20px;
-}
+.logs-page { width: 100%; }
 
 .card-header {
   display: flex;
@@ -304,35 +228,44 @@ onMounted(() => {
 
 .search-container {
   margin-bottom: 20px;
+  width: 100%;
+  overflow-x: auto;
 }
 
 .search-form {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 4px 0;
 }
 
 .search-form :deep(.el-form-item) {
-  margin-bottom: 16px;
-  margin-right: 24px;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.search-form :deep(.button-group-item) {
+  padding: 0;
+  margin-left: 8px;
 }
 
 .search-form :deep(.el-form-item__label) {
   font-weight: 500;
   color: #606266;
+  padding-right: 6px;
 }
 
-.search-input {
-  width: 240px;
-}
+.search-input { width: 180px; }
+.search-select { width: 140px; }
+.search-date { width: 280px; }
 
-.search-select {
-  width: 180px;
+.search-form :deep(.el-button) {
+  vertical-align: middle;
+  margin-right: 8px;
 }
-
-.search-date {
-  width: 360px;
-}
+.search-form :deep(.el-button:last-child) { margin-right: 0; }
 
 .table-container {
   overflow-x: auto;
@@ -356,16 +289,29 @@ onMounted(() => {
   font-family: 'Courier New', monospace;
 }
 
-:deep(.el-table__expand-icon) {
-  font-size: 16px;
+/* 输出信息样式：支持多行显示并保留换行符 */
+.output-text {
+  word-break: break-all;
+  white-space: pre-wrap; /* 保留文本中的换行符 */
+  font-family: 'Courier New', monospace;
+  line-height: 1.6; /* 增加行高提升可读性 */
+  color: #303133;
+  max-height: 300px; /* 限制最大高度 */
+  overflow-y: auto; /* 内容过长时显示滚动条 */
+  padding: 8px 12px;
+  background-color: #fff;
+  border-radius: 4px;
+  border: 1px solid #eee;
 }
 
+:deep(.el-table__expand-icon) { font-size: 16px; }
 :deep(.el-descriptions__label) {
   font-weight: 600;
   background-color: #fafafa;
 }
-
-:deep(.el-table__expanded-cell) {
-  padding: 0;
+:deep(.el-table__expanded-cell) { padding: 0; }
+/* 调整描述项间距 */
+:deep(.el-descriptions-item) {
+  padding: 12px 16px;
 }
 </style>
