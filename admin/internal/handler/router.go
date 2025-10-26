@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 	"github.com/puoxiu/discron/admin/internal/middlerware"
 	"github.com/puoxiu/discron/admin/internal/model/resp"
@@ -88,12 +90,28 @@ func configRoute(r *gin.Engine) {
 	}
 }
 
+// func configNoRoute(r *gin.Engine) {
+// 	r.LoadHTMLGlob("./dist/*.html") // npm打包成dist的路径
+// 	r.StaticFile("favicon.ico", "./dist/favicon.ico")
+// 	r.Static("/css", "./dist/css")         // dist里面的静态资源
+// 	r.Static("/fonts", "./dist/fonts")     // dist里面的静态资源
+// 	r.Static("/js", "./dist/js")           // dist里面的静态资源
+// 	r.Static("/img", "./dist/img")         // dist里面的静态资源
+// 	r.StaticFile("/", "./dist/index.html") // 前端网页入口页面
+// }
+
 func configNoRoute(r *gin.Engine) {
-	r.LoadHTMLGlob("./dist/*.html") // npm打包成dist的路径
-	r.StaticFile("favicon.ico", "./dist/favicon.ico")
-	r.Static("/css", "./dist/css")         // dist里面的静态资源
-	r.Static("/fonts", "./dist/fonts")     // dist里面的静态资源
-	r.Static("/js", "./dist/js")           // dist里面的静态资源
-	r.Static("/img", "./dist/img")         // dist里面的静态资源
-	r.StaticFile("/", "./dist/index.html") // 前端网页入口页面
+    // 加载前端打包的 HTML 文件
+    r.LoadHTMLGlob("./dist/*.html")
+    
+    // 映射所有静态资源（关键修改：将 assets 目录整体暴露）
+    r.Static("/assets", "./dist/assets")  // 匹配 dist/assets 下的所有资源
+    
+    // 映射根目录的静态文件（如 vite.svg）
+    r.StaticFile("/vite.svg", "./dist/vite.svg")
+    
+    // 单页应用入口：所有未匹配路由指向 index.html
+    r.NoRoute(func(c *gin.Context) {
+        c.HTML(http.StatusOK, "index.html", nil)
+    })
 }

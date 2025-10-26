@@ -3,7 +3,9 @@ data/
 md/
 bin/
 logs/
+dist2/
 dist/
+
 
 .vscode
 .env
