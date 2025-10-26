@@ -10,6 +10,7 @@ import (
 	"github.com/puoxiu/discron/common/pkg/notify"
 	"github.com/puoxiu/discron/common/pkg/server"
 	"github.com/puoxiu/discron/common/pkg/utils/event"
+	"github.com/puoxiu/discron/common/pkg/metrics"
 	"github.com/puoxiu/discron/node/internal/service"
 )
 
@@ -23,6 +24,8 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Println("node server config:", config)
+
+	metrics.StartMetricsServer("9100")
 
 	nodeServer, err := service.NewNodeServer()
 	if err != nil {

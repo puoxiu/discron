@@ -66,3 +66,13 @@ graph TD
 
     SQL -->|Job Exec Fail| Alarm
     Node4 -.->|Node Break| Alarm
+```
+
+
+## 运行截图
+
+**节点状态与负载信息**
+![Discron Node Overview](./images/discorn_nodes.png)
+
+**Grafana 可视化 Dashboard**
+![Grafana Dashboard](./images/grafana.png)

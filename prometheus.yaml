@@ -1,0 +1,8 @@
+global:
+  scrape_interval: 10s
+
+scrape_configs:
+  - job_name: 'discron'
+    static_configs:
+      # - targets: ['discron:9100']  # 或 localhost:9100
+      - targets: ['10.44.159.151:9100']

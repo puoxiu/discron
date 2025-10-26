@@ -39,6 +39,29 @@ services:
     networks:
       - crony-network
 
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: crony-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yml
+    restart: always
+    networks:
+      - crony-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: crony-grafana
+    ports:
+      - "3000:3000"
+    restart: always
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - crony-network
+
 # 仅保留网络配置，删除数据卷定义
 networks:
   crony-network:
