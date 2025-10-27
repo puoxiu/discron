@@ -26,7 +26,7 @@ services:
       retries: 5
 
   etcd:
-    image: bitnami/etcd:3.5
+    image: quay.io/coreos/etcd:v3.5.16
     container_name: crony-etcd
     ports:
       - "2379:2379"
